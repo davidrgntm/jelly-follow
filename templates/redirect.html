@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Instagram ochilmoqda...</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: linear-gradient(135deg, #833ab4, #fd1d1d, #fcb045);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      text-align: center;
+      padding: 20px;
+    }
+    .card {
+      background: rgba(255,255,255,0.15);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 40px 30px;
+      max-width: 360px;
+      width: 100%;
+    }
+    .logo { font-size: 60px; margin-bottom: 16px; }
+    h1 { font-size: 22px; font-weight: 700; margin-bottom: 8px; }
+    p { font-size: 14px; opacity: 0.85; margin-bottom: 24px; }
+    .spinner {
+      width: 40px; height: 40px;
+      border: 3px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      margin: 0 auto 20px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .btn {
+      display: inline-block;
+      background: white;
+      color: #833ab4;
+      padding: 12px 28px;
+      border-radius: 30px;
+      font-weight: 700;
+      font-size: 15px;
+      text-decoration: none;
+      margin-top: 10px;
+      transition: opacity 0.2s;
+    }
+    .btn:active { opacity: 0.8; }
+    #status { font-size: 12px; opacity: 0.7; margin-top: 16px; min-height: 18px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">📸</div>
+    <h1>Instagram ochilmoqda...</h1>
+    <p>Iltimos kuting, siz yo'naltirilmoqdasiz.</p>
+    <div class="spinner" id="spinner"></div>
+    <a href="{{ instagram_web_link }}" class="btn" id="fallbackBtn" style="display:none">
+      Instagram'ni ochish
+    </a>
+    <div id="status"></div>
+  </div>
+
+  <script>
+    // ── Data injected from server ──────────────────────────────────────────
+    const CONFIG = {
+      employeeId: "{{ employee_id }}",
+      employeeCode: "{{ employee_code }}",
+      eventId: "{{ event_id }}",
+      qrId: "{{ qr_id }}",
+      countryCode: "{{ country_code }}",
+      ipAddress: "{{ ip_address }}",
+      forwardedIp: "{{ forwarded_ip }}",
+      userAgent: "{{ user_agent }}",
+      referer: "{{ referer }}",
+      acceptLanguage: "{{ accept_language }}",
+      requestPath: "{{ request_path }}",
+      queryString: "{{ query_string }}",
+      instagramAppLink: "{{ instagram_app_link }}",
+      instagramWebLink: "{{ instagram_web_link }}",
+      apiBase: "{{ api_base }}",
+    };
+
+    // ── Device fingerprinting ──────────────────────────────────────────────
+    function getDeviceInfo() {
+      const ua = navigator.userAgent;
+      const platform = navigator.platform || "";
+
+      // OS detection
+      let osName = "Unknown";
+      if (/Windows/.test(ua)) osName = "Windows";
+      else if (/Mac OS X/.test(ua)) osName = "MacOS";
+      else if (/Android/.test(ua)) osName = "Android";
+      else if (/iPhone|iPad|iPod/.test(ua)) osName = "iOS";
+      else if (/Linux/.test(ua)) osName = "Linux";
+
+      // Browser detection
+      let browserName = "Unknown";
+      if (/Chrome/.test(ua) && !/Chromium|Edge|OPR/.test(ua)) browserName = "Chrome";
+      else if (/Firefox/.test(ua)) browserName = "Firefox";
+      else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browserName = "Safari";
+      else if (/Edge/.test(ua)) browserName = "Edge";
+      else if (/OPR|Opera/.test(ua)) browserName = "Opera";
+
+      // Device type
+      let deviceType = "desktop";
+      if (/Mobi|Android|iPhone|iPad/.test(ua)) deviceType = "mobile";
+      else if (/Tablet|iPad/.test(ua)) deviceType = "tablet";
+
+      return {
+        osName,
+        browserName,
+        deviceType,
+        platform,
+        screenWidth: screen.width,
+        screenHeight: screen.height,
+        viewportWidth: window.innerWidth,
+        viewportHeight: window.innerHeight,
+        timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        language: navigator.language,
+      };
+    }
+
+    // Simple canvas fingerprint
+    function getCanvasFingerprint() {
+      try {
+        const c = document.createElement("canvas");
+        const ctx = c.getContext("2d");
+        ctx.textBaseline = "top";
+        ctx.font = "14px Arial";
+        ctx.fillText("JellyFollow🔍", 2, 2);
+        return c.toDataURL().slice(-32);
+      } catch (e) { return ""; }
+    }
+
+    function buildFingerprintId(device) {
+      const raw = [
+        device.osName, device.browserName, device.platform,
+        device.screenWidth, device.screenHeight,
+        device.timezone, getCanvasFingerprint(),
+      ].join("|");
+      // Simple hash
+      let h = 0;
+      for (let i = 0; i < raw.length; i++) {
+        h = Math.imul(31, h) + raw.charCodeAt(i) | 0;
+      }
+      return "FP" + Math.abs(h).toString(16).padStart(8, "0");
+    }
+
+    // ── Instagram opening logic ────────────────────────────────────────────
+    let deepLinkAttempted = false;
+    let fallbackUsed = false;
+
+    function tryInstagramDeepLink(appLink, webLink) {
+      deepLinkAttempted = true;
+      setStatus("Instagram app ochilmoqda...");
+
+      const start = Date.now();
+      window.location.href = appLink;
+
+      // If app doesn't open within 2.5s, fall back to web
+      setTimeout(() => {
+        if (Date.now() - start > 2400) return; // App opened (page hidden)
+        fallbackUsed = true;
+        setStatus("Instagram web sahifaga o'tilmoqda...");
+        window.location.href = webLink;
+      }, 2500);
+
+      // Also handle page visibility (app opened = page hidden)
+      document.addEventListener("visibilitychange", () => {
+        if (document.hidden) {
+          clearTimeout(fallbackTimer);
+        }
+      });
+    }
+
+    let fallbackTimer;
+
+    function setStatus(msg) {
+      document.getElementById("status").textContent = msg;
+    }
+
+    function showFallbackBtn() {
+      document.getElementById("spinner").style.display = "none";
+      document.getElementById("fallbackBtn").style.display = "inline-block";
+    }
+
+    // ── Main flow ──────────────────────────────────────────────────────────
+    async function main() {
+      const device = getDeviceInfo();
+      const fingerprintId = buildFingerprintId(device);
+
+      // Send log to backend
+      const payload = {
+        employeeId: CONFIG.employeeId,
+        employeeCode: CONFIG.employeeCode,
+        eventId: CONFIG.eventId,
+        qrId: CONFIG.qrId,
+        countryCode: CONFIG.countryCode,
+        ipAddress: CONFIG.ipAddress,
+        forwardedIp: CONFIG.forwardedIp,
+        userAgent: CONFIG.userAgent,
+        referer: CONFIG.referer,
+        acceptLanguage: CONFIG.acceptLanguage,
+        requestPath: CONFIG.requestPath,
+        queryString: CONFIG.queryString,
+        instagramTarget: CONFIG.instagramWebLink,
+        fingerprintId,
+        deviceType: device.deviceType,
+        osName: device.osName,
+        browserName: device.browserName,
+        platform: device.platform,
+        screenWidth: device.screenWidth,
+        screenHeight: device.screenHeight,
+        viewportWidth: device.viewportWidth,
+        viewportHeight: device.viewportHeight,
+        timezone: device.timezone,
+        deepLinkAttempted: false,
+        fallbackUsed: false,
+      };
+
+      // Fire-and-forget log (don't wait)
+      fetch(CONFIG.apiBase + "/api/tracking/client-log", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          employee_id: payload.employeeId,
+          employee_code: payload.employeeCode,
+          event_id: payload.eventId,
+          qr_id: payload.qrId,
+          country_code: payload.countryCode,
+          ip_address: payload.ipAddress,
+          forwarded_ip: payload.forwardedIp,
+          user_agent: payload.userAgent,
+          referer: payload.referer,
+          accept_language: payload.acceptLanguage,
+          request_path: payload.requestPath,
+          query_string: payload.queryString,
+          instagram_target: payload.instagramTarget,
+          fingerprint_id: payload.fingerprintId,
+          device_type: payload.deviceType,
+          os_name: payload.osName,
+          browser_name: payload.browserName,
+          platform: payload.platform,
+          screen_width: payload.screenWidth,
+          screen_height: payload.screenHeight,
+          viewport_width: payload.viewportWidth,
+          viewport_height: payload.viewportHeight,
+          timezone: payload.timezone,
+          deep_link_attempted: true,
+          fallback_used: false,
+        }),
+        keepalive: true,
+      }).catch(() => {});
+
+      // Try to open Instagram
+      setTimeout(() => {
+        tryInstagramDeepLink(CONFIG.instagramAppLink, CONFIG.instagramWebLink);
+        // Show manual fallback button after 4s
+        fallbackTimer = setTimeout(showFallbackBtn, 4000);
+      }, 800); // Small delay to let log fire
+    }
+
+    main();
+  </script>
+</body>
+</html>

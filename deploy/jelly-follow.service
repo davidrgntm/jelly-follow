@@ -1,0 +1,25 @@
+[Unit]
+Description=Jelly Follow FastAPI + Bot
+After=network.target
+
+[Service]
+Type=exec
+User=jelly
+Group=jelly
+WorkingDirectory=/home/jelly/jelly-follow
+Environment="PATH=/home/jelly/jelly-follow/venv/bin"
+ExecStart=/home/jelly/jelly-follow/venv/bin/gunicorn \
+    app.main:app \
+    -k uvicorn.workers.UvicornWorker \
+    --workers 2 \
+    --bind 127.0.0.1:8000 \
+    --timeout 60 \
+    --access-logfile /var/log/jelly-follow/access.log \
+    --error-logfile /var/log/jelly-follow/error.log
+Restart=always
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
