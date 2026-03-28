@@ -52,7 +52,18 @@ def create_event(event_name, description, start_at, end_at, rules_text,
     invalidate_events()
     _log(sheets, "event_created", "event", event_id, f"Event created: {event_name}")
     logger.info("Event created: %s", event_id)
-    return hydrate_event(get_event_by_id(event_id))
+
+    # Return data directly — don't re-fetch (avoids NoneType if cache stale)
+    result = {
+        "event_id": event_id, "event_code": event_code,
+        "event_name": event_name, "description": description,
+        "status": "draft", "start_at": start_at, "end_at": end_at,
+        "rules_text": rules_text, "created_by_admin_id": created_by_admin_id,
+        "reward_pool_amount": str(reward_pool_amount) if reward_pool_amount else "",
+        "reward_pool_currency": reward_pool_currency or "UZS",
+        "countries": country_codes, "rewards": rewards,
+    }
+    return result
 
 
 def get_event_by_id(event_id):

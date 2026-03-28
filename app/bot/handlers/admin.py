@@ -1,20 +1,18 @@
 """
 Admin / GA bot interface.
-Fully button-based. Event creation with reward pool.
-Event activate triggers notifications.
+Fixes: cancel restores keyboard, per-place reward amounts, language change for admins.
 """
 import asyncio
 import calendar
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime
 
 from aiogram import Router, F
-from aiogram.filters import Command
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.types import (
     Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton,
-    InlineKeyboardMarkup, InlineKeyboardButton, ReplyKeyboardRemove,
+    InlineKeyboardMarkup, InlineKeyboardButton,
 )
 
 from app.bot.keyboards.main_keyboards import ADMIN_PANEL_TEXT, main_menu_keyboard
@@ -50,32 +48,34 @@ class EventCreateStates(StatesGroup):
     end_hour = State()
     reward_pool_amount = State()
     reward_pool_currency = State()
-    reward_template = State()
+    reward_count = State()
+    reward_place_amount = State()
     confirm = State()
 
 
 class ManualPointsStates(StatesGroup):
     employee_code = State()
 
+
 class EmployeeStatusStates(StatesGroup):
     employee_code = State()
+
 
 class AddAdminStates(StatesGroup):
     tg_id = State()
     full_name = State()
 
-class LeaderboardStates(StatesGroup):
-    choose_country = State()
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# KEYBOARDS
+# ═══════════════════════════════════════════════════════════════════════════════
 
-# ── Admin keyboards ──────────────────────────────────────────────────────────
-
-def _admin_keyboard(lang, role):
+def _admin_keyboard(role="ga"):
     rows = [
         [KeyboardButton(text="🏆 Eventlar"), KeyboardButton(text="➕ Yangi event")],
         [KeyboardButton(text="👥 Xodimlar"), KeyboardButton(text="🥇 Reyting")],
         [KeyboardButton(text="💰 Ball berish"), KeyboardButton(text="🔒 Xodim statusi")],
-        [KeyboardButton(text="📊 Statistika")],
+        [KeyboardButton(text="📊 Statistika"), KeyboardButton(text="🌐 Til")],
     ]
     if role == "super_admin":
         rows.append([KeyboardButton(text="➕ GA/Admin qo'shish")])
@@ -83,7 +83,13 @@ def _admin_keyboard(lang, role):
     return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
 
-def _cancel_kb():
+def _cancel_reply_kb():
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="❌ Bekor qilish")]],
+        resize_keyboard=True)
+
+
+def _cancel_inline_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")]
     ])
@@ -94,14 +100,44 @@ def _countries_kb(selected):
     row = []
     for code in ["UZ", "RU", "KG", "AZ"]:
         prefix = "✅ " if code in selected else "▫️ "
-        row.append(InlineKeyboardButton(text=prefix + COUNTRY_LABELS[code], callback_data=f"adm:evt:ctry:{code}"))
+        row.append(InlineKeyboardButton(text=prefix + COUNTRY_LABELS[code],
+                                        callback_data=f"adm:evt:ctry:{code}"))
         if len(row) == 2:
             rows.append(row)
             row = []
     if row:
         rows.append(row)
     rows.append([InlineKeyboardButton(text="✅ Davom etish", callback_data="adm:evt:ctry:done")])
-    rows.append([InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")])
+    rows.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")])
+    return InlineKeyboardMarkup(inline_keyboard=rows)
+
+
+def _calendar_kb(year, month, prefix):
+    rows = []
+    rows.append([InlineKeyboardButton(
+        text=f"{calendar.month_name[month]} {year}", callback_data="noop")])
+    header = [InlineKeyboardButton(text=d, callback_data="noop")
+              for d in ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"]]
+    rows.append(header)
+    for week in calendar.monthcalendar(year, month):
+        row = []
+        for day in week:
+            if day == 0:
+                row.append(InlineKeyboardButton(text=" ", callback_data="noop"))
+            else:
+                row.append(InlineKeyboardButton(
+                    text=str(day),
+                    callback_data=f"adm:cal:{prefix}:{year}-{month:02d}-{day:02d}"))
+        rows.append(row)
+    prev_m = month - 1 if month > 1 else 12
+    prev_y = year if month > 1 else year - 1
+    next_m = month + 1 if month < 12 else 1
+    next_y = year if month < 12 else year + 1
+    rows.append([
+        InlineKeyboardButton(text="◀️", callback_data=f"adm:calnav:{prefix}:{prev_y}-{prev_m:02d}"),
+        InlineKeyboardButton(text="▶️", callback_data=f"adm:calnav:{prefix}:{next_y}-{next_m:02d}"),
+    ])
+    rows.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -109,39 +145,14 @@ def _hours_kb(prefix):
     rows = []
     row = []
     for h in range(0, 24):
-        row.append(InlineKeyboardButton(text=f"{h:02d}:00", callback_data=f"adm:hour:{prefix}:{h:02d}"))
+        row.append(InlineKeyboardButton(
+            text=f"{h:02d}:00", callback_data=f"adm:hour:{prefix}:{h:02d}"))
         if len(row) == 4:
             rows.append(row)
             row = []
     if row:
         rows.append(row)
-    rows.append([InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")])
-    return InlineKeyboardMarkup(inline_keyboard=rows)
-
-
-def _calendar_kb(year, month, prefix):
-    rows = []
-    rows.append([InlineKeyboardButton(text=f"{calendar.month_name[month]} {year}", callback_data="noop")])
-    header = [InlineKeyboardButton(text=d, callback_data="noop") for d in ["Du", "Se", "Ch", "Pa", "Ju", "Sh", "Ya"]]
-    rows.append(header)
-    cal = calendar.monthcalendar(year, month)
-    for week in cal:
-        row = []
-        for day in week:
-            if day == 0:
-                row.append(InlineKeyboardButton(text=" ", callback_data="noop"))
-            else:
-                row.append(InlineKeyboardButton(text=str(day), callback_data=f"adm:cal:{prefix}:{year}-{month:02d}-{day:02d}"))
-        rows.append(row)
-    nav = []
-    prev_m = month - 1 if month > 1 else 12
-    prev_y = year if month > 1 else year - 1
-    next_m = month + 1 if month < 12 else 1
-    next_y = year if month < 12 else year + 1
-    nav.append(InlineKeyboardButton(text="◀️", callback_data=f"adm:calnav:{prefix}:{prev_y}-{prev_m:02d}"))
-    nav.append(InlineKeyboardButton(text="▶️", callback_data=f"adm:calnav:{prefix}:{next_y}-{next_m:02d}"))
-    rows.append(nav)
-    rows.append([InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")])
+    rows.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
@@ -153,7 +164,7 @@ def _pool_amount_kb():
          InlineKeyboardButton(text="2 000 000", callback_data="adm:pool:2000000")],
         [InlineKeyboardButton(text="5 000 000", callback_data="adm:pool:5000000"),
          InlineKeyboardButton(text="10 000 000", callback_data="adm:pool:10000000")],
-        [InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")],
     ])
 
 
@@ -167,58 +178,44 @@ def _currency_kb():
             row = []
     if row:
         rows.append(row)
-    rows.append([InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")])
+    rows.append([InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")])
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-def _reward_template_kb():
+def _reward_count_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="Mukofot yo'q", callback_data="adm:reward:none")],
-        [InlineKeyboardButton(text="Top 3", callback_data="adm:reward:top3")],
-        [InlineKeyboardButton(text="Top 5", callback_data="adm:reward:top5")],
-        [InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")],
+        [InlineKeyboardButton(text="Mukofot yo'q", callback_data="adm:rwdcnt:0")],
+        [InlineKeyboardButton(text="Top 3 (3 o'rin)", callback_data="adm:rwdcnt:3"),
+         InlineKeyboardButton(text="Top 5 (5 o'rin)", callback_data="adm:rwdcnt:5")],
+        [InlineKeyboardButton(text="Top 10 (10 o'rin)", callback_data="adm:rwdcnt:10")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")],
     ])
 
 
 def _confirm_event_kb():
     return InlineKeyboardMarkup(inline_keyboard=[
         [InlineKeyboardButton(text="✅ Yaratish", callback_data="adm:event:save")],
-        [InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")],
-    ])
-
-
-def _status_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="✅ active", callback_data="adm:status:active")],
-        [InlineKeyboardButton(text="⏸ inactive", callback_data="adm:status:inactive")],
-        [InlineKeyboardButton(text="⛔ blocked", callback_data="adm:status:blocked")],
-        [InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")],
-    ])
-
-
-def _manual_points_kb():
-    return InlineKeyboardMarkup(inline_keyboard=[
-        [InlineKeyboardButton(text="+1", callback_data="adm:mp:1"),
-         InlineKeyboardButton(text="+5", callback_data="adm:mp:5"),
-         InlineKeyboardButton(text="+10", callback_data="adm:mp:10")],
-        [InlineKeyboardButton(text="-1", callback_data="adm:mp:-1"),
-         InlineKeyboardButton(text="-5", callback_data="adm:mp:-5"),
-         InlineKeyboardButton(text="-10", callback_data="adm:mp:-10")],
-        [InlineKeyboardButton(text="❌ Bekor", callback_data="adm:cancel")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")],
     ])
 
 
 def _event_actions_kb(event_id, status):
     buttons = []
     if status == "draft":
-        buttons.append([InlineKeyboardButton(text="▶️ Boshlash (active)", callback_data=f"adm:evtact:activate:{event_id}")])
+        buttons.append([InlineKeyboardButton(
+            text="▶️ Boshlash (active)", callback_data=f"adm:evtact:activate:{event_id}")])
     elif status == "active":
-        buttons.append([InlineKeyboardButton(text="⏸ Pauza", callback_data=f"adm:evtact:pause:{event_id}")])
-        buttons.append([InlineKeyboardButton(text="🏁 Tugatish", callback_data=f"adm:evtact:finish:{event_id}")])
+        buttons.append([InlineKeyboardButton(
+            text="⏸ Pauza", callback_data=f"adm:evtact:pause:{event_id}")])
+        buttons.append([InlineKeyboardButton(
+            text="🏁 Tugatish", callback_data=f"adm:evtact:finish:{event_id}")])
     elif status == "paused":
-        buttons.append([InlineKeyboardButton(text="▶️ Davom", callback_data=f"adm:evtact:activate:{event_id}")])
-        buttons.append([InlineKeyboardButton(text="🏁 Tugatish", callback_data=f"adm:evtact:finish:{event_id}")])
-    buttons.append([InlineKeyboardButton(text="🥇 Reyting", callback_data=f"adm:evtlb:{event_id}")])
+        buttons.append([InlineKeyboardButton(
+            text="▶️ Davom", callback_data=f"adm:evtact:activate:{event_id}")])
+        buttons.append([InlineKeyboardButton(
+            text="🏁 Tugatish", callback_data=f"adm:evtact:finish:{event_id}")])
+    buttons.append([InlineKeyboardButton(
+        text="🥇 Reyting", callback_data=f"adm:evtlb:{event_id}")])
     return InlineKeyboardMarkup(inline_keyboard=buttons)
 
 
@@ -235,48 +232,114 @@ def _leaderboard_country_kb():
     return InlineKeyboardMarkup(inline_keyboard=rows)
 
 
-# ── Handlers ─────────────────────────────────────────────────────────────────
+def _status_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="✅ active", callback_data="adm:status:active")],
+        [InlineKeyboardButton(text="⏸ inactive", callback_data="adm:status:inactive")],
+        [InlineKeyboardButton(text="⛔ blocked", callback_data="adm:status:blocked")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")],
+    ])
+
+
+def _manual_points_kb():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="+1", callback_data="adm:mp:1"),
+         InlineKeyboardButton(text="+5", callback_data="adm:mp:5"),
+         InlineKeyboardButton(text="+10", callback_data="adm:mp:10")],
+        [InlineKeyboardButton(text="-1", callback_data="adm:mp:-1"),
+         InlineKeyboardButton(text="-5", callback_data="adm:mp:-5"),
+         InlineKeyboardButton(text="-10", callback_data="adm:mp:-10")],
+        [InlineKeyboardButton(text="❌ Bekor qilish", callback_data="adm:cancel")],
+    ])
+
+
+def _medal(rank):
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    return medals.get(rank, f"{rank}.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# HELPERS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def _get_admin_info(user_id):
     admin = get_admin_by_telegram_id(user_id)
     return admin if admin and admin.get("status") == "active" else None
 
 
+async def _restore_admin_kb(target, user_id):
+    """Restore admin keyboard after any cancel/finish."""
+    admin = _get_admin_info(user_id)
+    role = admin.get("role_code", "ga") if admin else "ga"
+    await target.answer("👑 Admin panel", reply_markup=_admin_keyboard(role))
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CANCEL HANDLERS (must be at the top for priority)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@router.callback_query(F.data == "adm:cancel")
+async def cb_cancel(cb: CallbackQuery, state: FSMContext, **kwargs):
+    await state.clear()
+    try:
+        await cb.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await _restore_admin_kb(cb.message, cb.from_user.id)
+    await cb.answer("❌ Bekor qilindi")
+
+
+@router.callback_query(F.data == "noop")
+async def cb_noop(cb: CallbackQuery, **kwargs):
+    await cb.answer()
+
+
+@router.message(F.text == "❌ Bekor qilish")
+async def text_cancel(message: Message, state: FSMContext, **kwargs):
+    await state.clear()
+    await _restore_admin_kb(message, message.from_user.id)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN ENTRY
+# ═══════════════════════════════════════════════════════════════════════════════
+
 @router.message(F.text.in_({ADMIN_PANEL_TEXT, "/admin"}))
-async def cmd_admin(message: Message, state: FSMContext, lang: str, **kwargs):
+async def cmd_admin(message: Message, state: FSMContext, **kwargs):
     await state.clear()
     admin = _get_admin_info(message.from_user.id)
     if not admin:
         await message.answer("⛔ Sizda admin huquqi yo'q.")
         return
     role = admin.get("role_code", "ga")
-    await message.answer("👑 Admin panel", reply_markup=_admin_keyboard(lang, role))
+    await message.answer("👑 Admin panel", reply_markup=_admin_keyboard(role))
 
 
 @router.message(F.text == "⬅️ Xodim menyusi")
-async def back_to_employee(message: Message, state: FSMContext, employee: dict, lang: str):
+async def back_to_employee(message: Message, state: FSMContext, employee: dict, lang: str, **kwargs):
     await state.clear()
     await message.answer(t("menu.main", lang),
                          reply_markup=main_menu_keyboard(lang, is_admin=is_admin(message.from_user.id)))
 
 
-@router.callback_query(F.data == "adm:cancel")
-async def cb_cancel(cb: CallbackQuery, state: FSMContext, lang: str, **kwargs):
-    await state.clear()
-    await cb.message.edit_reply_markup(reply_markup=None)
-    await cb.message.answer("❌ Bekor qilindi.")
-    await cb.answer()
+@router.message(F.text == "🌐 Til")
+async def admin_change_lang(message: Message, **kwargs):
+    from app.bot.keyboards.main_keyboards import lang_select_keyboard
+    await message.answer("🌐 Tilni tanlang:", reply_markup=lang_select_keyboard())
 
 
-# ── System stats ─────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# SYSTEM STATS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "📊 Statistika")
-async def admin_stats(message: Message, lang: str, **kwargs):
+async def admin_stats(message: Message, **kwargs):
     admin = _get_admin_info(message.from_user.id)
     if not admin:
         return
     stats = get_system_stats()
-    country_lines = "\n".join(f"  {cc}: {s['active']}/{s['employees']}" for cc, s in stats.get("country_stats", {}).items())
+    country_lines = "\n".join(
+        f"  {cc}: {s['active']}/{s['employees']}" for cc, s in stats.get("country_stats", {}).items())
     text = (
         f"📊 <b>Tizim statistikasi</b>\n\n"
         f"👥 Xodimlar: {stats['employees_active']}/{stats['employees_total']}\n"
@@ -285,15 +348,16 @@ async def admin_stats(message: Message, lang: str, **kwargs):
         f"📱 Skanlar: {stats['scans_total']}\n"
         f"✅ Unique: {stats['unique_awards']}\n"
         f"🔁 Takror: {stats['duplicate_scans']}\n"
-        f"⚠️ Shubhali: {stats['suspicious_scans']}\n"
+        f"⚠️ Shubhali: {stats.get('suspicious_scans', 0)}\n"
         f"⭐ Jami ball: {stats['points_total']}\n\n"
-        f"📱 Qurilmalar: {stats['devices_total']} (toza: {stats['devices_clean']}, shubhali: {stats['devices_suspicious']})\n\n"
-        f"🌍 Mamlakat bo'yicha (faol/jami):\n{country_lines}"
+        f"🌍 Mamlakatlar:\n{country_lines}"
     )
     await message.answer(text, parse_mode="HTML")
 
 
-# ── Employees list ───────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# EMPLOYEES LIST
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "👥 Xodimlar")
 async def admin_employees(message: Message, **kwargs):
@@ -307,14 +371,16 @@ async def admin_employees(message: Message, **kwargs):
     active = [e for e in employees if e.get("status") == "active"]
     text = f"👥 <b>Xodimlar</b> ({len(active)} faol / {len(employees)} jami)\n\n"
     for e in employees[:30]:
-        status_icon = "✅" if e.get("status") == "active" else "⏸" if e.get("status") == "inactive" else "⛔"
-        text += f"{status_icon} <code>{e.get('employee_code')}</code> — {e.get('full_name')} ({e.get('country_code')})\n"
+        icon = "✅" if e.get("status") == "active" else "⏸" if e.get("status") == "inactive" else "⛔"
+        text += f"{icon} <code>{e.get('employee_code')}</code> — {e.get('full_name')} ({e.get('country_code')})\n"
     if len(employees) > 30:
         text += f"\n... va yana {len(employees) - 30} ta"
     await message.answer(text, parse_mode="HTML")
 
 
-# ── Events list ──────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# EVENTS LIST + ACTIONS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "🏆 Eventlar")
 async def admin_events(message: Message, **kwargs):
@@ -325,8 +391,8 @@ async def admin_events(message: Message, **kwargs):
     if not events:
         await message.answer("ℹ️ Eventlar yo'q.")
         return
+    status_map = {"draft": "📝", "active": "▶️", "paused": "⏸", "finished": "🏁"}
     for ev in events[:10]:
-        status_map = {"draft": "📝", "active": "▶️", "paused": "⏸", "finished": "🏁"}
         icon = status_map.get(ev.get("status"), "❓")
         pool = ev.get("reward_pool_amount", "")
         pool_text = f"\n💰 Pul: {pool} {ev.get('reward_pool_currency', '')}" if pool else ""
@@ -336,10 +402,8 @@ async def admin_events(message: Message, **kwargs):
                 f"📅 {ev.get('start_at', '')} — {ev.get('end_at', '')}"
                 f"{pool_text}")
         await message.answer(text, parse_mode="HTML",
-                             reply_markup=_event_actions_kb(ev["event_id"], ev.get("status", "")))
+                             reply_markup=_event_actions_kb(ev.get("event_id", ""), ev.get("status", "")))
 
-
-# ── Event actions ────────────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("adm:evtact:"))
 async def cb_event_action(cb: CallbackQuery, **kwargs):
@@ -358,7 +422,7 @@ async def cb_event_action(cb: CallbackQuery, **kwargs):
     try:
         set_event_status(event_id, new_status)
     except Exception as e:
-        await cb.answer(str(e), show_alert=True)
+        await cb.answer(str(e)[:100], show_alert=True)
         return
 
     # If activating — send notifications!
@@ -367,14 +431,17 @@ async def cb_event_action(cb: CallbackQuery, **kwargs):
         if event:
             countries = get_event_countries(event_id)
             employees = get_all_employees()
-            target_employees = [e for e in employees
-                                if e.get("status") == "active"
-                                and e.get("country_code", "").upper() in [c.upper() for c in countries]]
+            target_emps = [e for e in employees
+                           if e.get("status") == "active"
+                           and e.get("country_code", "").upper() in [c.upper() for c in countries]]
             rewards = get_event_rewards(event_id)
-            asyncio.create_task(notify_event_started(target_employees, event, rewards))
+            asyncio.create_task(notify_event_started(target_emps, event, rewards))
 
-    await cb.message.edit_reply_markup(reply_markup=_event_actions_kb(event_id, new_status))
-    await cb.answer(f"✅ Event {new_status}!")
+    try:
+        await cb.message.edit_reply_markup(reply_markup=_event_actions_kb(event_id, new_status))
+    except Exception:
+        pass
+    await cb.answer(f"✅ Event → {new_status}")
 
 
 @router.callback_query(F.data.startswith("adm:evtlb:"))
@@ -384,45 +451,39 @@ async def cb_event_leaderboard(cb: CallbackQuery, **kwargs):
     if not lb:
         await cb.answer("Reyting bo'sh", show_alert=True)
         return
-    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
-    lines = [f"{medals.get(e['rank'], str(e['rank'])+'.')} {e['full_name']} ({e['country_code']}) — <b>{e['points']}</b>"
+    lines = [f"{_medal(e['rank'])} {e['full_name']} ({e['country_code']}) — <b>{e['points']}</b>"
              for e in lb]
-    text = "🥇 <b>Event reytingi</b>\n\n" + "\n".join(lines)
-    await cb.message.answer(text, parse_mode="HTML")
+    await cb.message.answer("🥇 <b>Event reytingi</b>\n\n" + "\n".join(lines), parse_mode="HTML")
     await cb.answer()
 
 
-# ── Create event ─────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# CREATE EVENT — full flow with per-place reward amounts
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "➕ Yangi event")
 async def admin_create_event(message: Message, state: FSMContext, **kwargs):
     admin = _get_admin_info(message.from_user.id)
     if not admin:
         return
+    await state.clear()
     await state.set_state(EventCreateStates.name)
     await state.update_data(admin_id=admin.get("admin_id", ""))
-    await message.answer("📝 Event nomini kiriting:", reply_markup=ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="❌ Bekor qilish")]], resize_keyboard=True))
-
-
-@router.message(F.text == "❌ Bekor qilish")
-async def text_cancel(message: Message, state: FSMContext, lang: str, **kwargs):
-    current = await state.get_state()
-    if current:
-        await state.clear()
-        admin = _get_admin_info(message.from_user.id)
-        role = admin.get("role_code", "ga") if admin else "ga"
-        await message.answer("❌ Bekor qilindi.", reply_markup=_admin_keyboard(lang, role))
+    await message.answer("📝 Event nomini kiriting:", reply_markup=_cancel_reply_kb())
 
 
 @router.message(EventCreateStates.name)
 async def evt_name(message: Message, state: FSMContext, **kwargs):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await _restore_admin_kb(message, message.from_user.id)
+        return
     if not message.text or len(message.text.strip()) < 2:
-        await message.answer("Ism juda qisqa. Qayta kiriting:")
+        await message.answer("⚠️ Ism juda qisqa. Qayta kiriting:")
         return
     await state.update_data(event_name=message.text.strip())
     await state.set_state(EventCreateStates.countries)
-    await state.update_data(selected_countries=set())
+    await state.update_data(selected_countries=[])
     await message.answer("🌍 Mamlakatlarni tanlang:", reply_markup=_countries_kb(set()))
 
 
@@ -438,7 +499,8 @@ async def evt_country_toggle(cb: CallbackQuery, state: FSMContext, **kwargs):
         await state.update_data(selected_countries=list(selected))
         await state.set_state(EventCreateStates.start_date)
         now = datetime.utcnow()
-        await cb.message.edit_text("📅 Boshlanish sanasi:", reply_markup=_calendar_kb(now.year, now.month, "start"))
+        await cb.message.edit_text("📅 Boshlanish sanasi:",
+                                   reply_markup=_calendar_kb(now.year, now.month, "start"))
         await cb.answer()
         return
     if code in selected:
@@ -451,7 +513,7 @@ async def evt_country_toggle(cb: CallbackQuery, state: FSMContext, **kwargs):
 
 
 @router.callback_query(F.data.startswith("adm:calnav:"))
-async def cal_nav(cb: CallbackQuery, state: FSMContext, **kwargs):
+async def cal_nav(cb: CallbackQuery, **kwargs):
     parts = cb.data.split(":")
     prefix = parts[2]
     ym = parts[3].split("-")
@@ -465,7 +527,8 @@ async def evt_start_date(cb: CallbackQuery, state: FSMContext, **kwargs):
     date_str = cb.data.split(":")[3]
     await state.update_data(start_date=date_str)
     await state.set_state(EventCreateStates.start_hour)
-    await cb.message.edit_text(f"📅 Boshlanish: {date_str}\n⏰ Soatni tanlang:", reply_markup=_hours_kb("start"))
+    await cb.message.edit_text(f"📅 Boshlanish: {date_str}\n⏰ Soatni tanlang:",
+                               reply_markup=_hours_kb("start"))
     await cb.answer()
 
 
@@ -475,7 +538,8 @@ async def evt_start_hour(cb: CallbackQuery, state: FSMContext, **kwargs):
     await state.update_data(start_hour=hour)
     await state.set_state(EventCreateStates.end_date)
     now = datetime.utcnow()
-    await cb.message.edit_text("📅 Tugash sanasi:", reply_markup=_calendar_kb(now.year, now.month, "end"))
+    await cb.message.edit_text("📅 Tugash sanasi:",
+                               reply_markup=_calendar_kb(now.year, now.month, "end"))
     await cb.answer()
 
 
@@ -484,7 +548,8 @@ async def evt_end_date(cb: CallbackQuery, state: FSMContext, **kwargs):
     date_str = cb.data.split(":")[3]
     await state.update_data(end_date=date_str)
     await state.set_state(EventCreateStates.end_hour)
-    await cb.message.edit_text(f"📅 Tugash: {date_str}\n⏰ Soatni tanlang:", reply_markup=_hours_kb("end"))
+    await cb.message.edit_text(f"📅 Tugash: {date_str}\n⏰ Soatni tanlang:",
+                               reply_markup=_hours_kb("end"))
     await cb.answer()
 
 
@@ -503,11 +568,12 @@ async def evt_pool_amount(cb: CallbackQuery, state: FSMContext, **kwargs):
     await state.update_data(reward_pool_amount=amount)
     if amount == "0":
         await state.update_data(reward_pool_currency="")
-        await state.set_state(EventCreateStates.reward_template)
-        await cb.message.edit_text("🎁 Mukofot shabloni:", reply_markup=_reward_template_kb())
+        await state.set_state(EventCreateStates.reward_count)
+        await cb.message.edit_text("🎁 Nechta o'rin uchun mukofot?", reply_markup=_reward_count_kb())
     else:
         await state.set_state(EventCreateStates.reward_pool_currency)
-        await cb.message.edit_text(f"💰 Summa: {int(amount):,}\n💱 Valyutani tanlang:", reply_markup=_currency_kb())
+        await cb.message.edit_text(
+            f"💰 Summa: {int(amount):,}\n💱 Valyutani tanlang:", reply_markup=_currency_kb())
     await cb.answer()
 
 
@@ -515,79 +581,139 @@ async def evt_pool_amount(cb: CallbackQuery, state: FSMContext, **kwargs):
 async def evt_pool_currency(cb: CallbackQuery, state: FSMContext, **kwargs):
     currency = cb.data.split(":")[2]
     await state.update_data(reward_pool_currency=currency)
-    await state.set_state(EventCreateStates.reward_template)
-    await cb.message.edit_text("🎁 Mukofot shabloni:", reply_markup=_reward_template_kb())
+    await state.set_state(EventCreateStates.reward_count)
+    await cb.message.edit_text("🎁 Nechta o'rin uchun mukofot?", reply_markup=_reward_count_kb())
     await cb.answer()
 
 
-@router.callback_query(F.data.startswith("adm:reward:"), EventCreateStates.reward_template)
-async def evt_reward_template(cb: CallbackQuery, state: FSMContext, **kwargs):
-    template = cb.data.split(":")[2]
+@router.callback_query(F.data.startswith("adm:rwdcnt:"), EventCreateStates.reward_count)
+async def evt_reward_count(cb: CallbackQuery, state: FSMContext, **kwargs):
+    count = int(cb.data.split(":")[2])
+    if count == 0:
+        await state.update_data(rewards=[], reward_places=0, current_place=0)
+        await state.set_state(EventCreateStates.confirm)
+        await _show_confirm(cb, state)
+        return
+
+    await state.update_data(reward_places=count, current_place=1, rewards=[])
+    await state.set_state(EventCreateStates.reward_place_amount)
     data = await state.get_data()
     currency = data.get("reward_pool_currency", "UZS") or "UZS"
-    rewards = []
-    if template == "top3":
-        rewards = [
-            {"place_number": 1, "reward_title": "1-o'rin", "reward_amount": "", "currency_code": currency},
-            {"place_number": 2, "reward_title": "2-o'rin", "reward_amount": "", "currency_code": currency},
-            {"place_number": 3, "reward_title": "3-o'rin", "reward_amount": "", "currency_code": currency},
-        ]
-    elif template == "top5":
-        rewards = [
-            {"place_number": i, "reward_title": f"{i}-o'rin", "reward_amount": "", "currency_code": currency}
-            for i in range(1, 6)
-        ]
-    await state.update_data(rewards=rewards, reward_template=template)
-    await state.set_state(EventCreateStates.confirm)
+    await cb.message.edit_text(
+        f"🎁 <b>1-o'rin</b> mukofot summasini kiriting ({currency}):\n\n"
+        f"Raqam kiriting yoki 0 bosing:",
+        parse_mode="HTML")
+    await cb.answer()
 
-    start_date = data.get("start_date", "")
-    start_hour = data.get("start_hour", "00")
-    end_date = data.get("end_date", "")
-    end_hour = data.get("end_hour", "00")
-    pool_amount = data.get("reward_pool_amount", "0")
-    pool_currency = data.get("reward_pool_currency", "")
-    countries = data.get("selected_countries", [])
 
-    pool_text = f"💰 Mukofot puli: {int(pool_amount):,} {pool_currency}\n" if pool_amount != "0" else ""
-    text = (
-        f"📝 <b>Event tekshiruv</b>\n\n"
-        f"📌 Nomi: <b>{data.get('event_name')}</b>\n"
-        f"🌍 Mamlakatlar: {', '.join(countries)}\n"
-        f"📅 {start_date} {start_hour}:00 — {end_date} {end_hour}:00\n"
-        f"{pool_text}"
-        f"🎁 Mukofot: {template}\n\n"
-        f"Tasdiqlaysizmi?"
-    )
+@router.message(EventCreateStates.reward_place_amount)
+async def evt_place_amount(message: Message, state: FSMContext, **kwargs):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await _restore_admin_kb(message, message.from_user.id)
+        return
+
+    text = message.text.strip().replace(",", "").replace(" ", "").replace(".", "")
+    if not text.lstrip("-").isdigit():
+        await message.answer("⚠️ Faqat raqam kiriting:")
+        return
+
+    amount = text
+    data = await state.get_data()
+    current_place = data.get("current_place", 1)
+    total_places = data.get("reward_places", 3)
+    currency = data.get("reward_pool_currency", "UZS") or "UZS"
+    rewards = data.get("rewards", [])
+
+    rewards.append({
+        "place_number": current_place,
+        "reward_title": f"{current_place}-o'rin",
+        "reward_amount": amount,
+        "currency_code": currency,
+    })
+
+    next_place = current_place + 1
+    if next_place > total_places:
+        # All places filled
+        await state.update_data(rewards=rewards, current_place=next_place)
+        await state.set_state(EventCreateStates.confirm)
+        await _show_confirm_msg(message, state)
+        return
+
+    await state.update_data(rewards=rewards, current_place=next_place)
+    await message.answer(
+        f"🎁 <b>{next_place}-o'rin</b> mukofot summasini kiriting ({currency}):",
+        parse_mode="HTML")
+
+
+async def _show_confirm(cb, state):
+    data = await state.get_data()
+    text = _build_confirm_text(data)
     await cb.message.edit_text(text, parse_mode="HTML", reply_markup=_confirm_event_kb())
     await cb.answer()
 
 
+async def _show_confirm_msg(message, state):
+    data = await state.get_data()
+    text = _build_confirm_text(data)
+    await message.answer(text, parse_mode="HTML", reply_markup=_confirm_event_kb())
+
+
+def _build_confirm_text(data):
+    countries = data.get("selected_countries", [])
+    pool_amount = data.get("reward_pool_amount", "0")
+    pool_currency = data.get("reward_pool_currency", "")
+    pool_text = f"💰 Mukofot puli: {int(pool_amount):,} {pool_currency}\n" if pool_amount != "0" else ""
+
+    rewards = data.get("rewards", [])
+    reward_lines = ""
+    if rewards:
+        reward_lines = "🎁 Mukofotlar:\n" + "\n".join(
+            f"  {r['place_number']}-o'rin: {r.get('reward_amount', '0')} {r.get('currency_code', '')}"
+            for r in rewards) + "\n"
+
+    return (
+        f"📝 <b>Event tekshiruv</b>\n\n"
+        f"📌 Nomi: <b>{data.get('event_name')}</b>\n"
+        f"🌍 Mamlakatlar: {', '.join(countries)}\n"
+        f"📅 {data.get('start_date')} {data.get('start_hour')}:00 — "
+        f"{data.get('end_date')} {data.get('end_hour')}:00\n"
+        f"{pool_text}{reward_lines}\n"
+        f"Tasdiqlaysizmi?"
+    )
+
+
 @router.callback_query(F.data == "adm:event:save", EventCreateStates.confirm)
-async def evt_save(cb: CallbackQuery, state: FSMContext, lang: str, **kwargs):
+async def evt_save(cb: CallbackQuery, state: FSMContext, **kwargs):
     data = await state.get_data()
     start_at = f"{data['start_date']} {data['start_hour']}:00"
     end_at = f"{data['end_date']} {data['end_hour']}:00"
     try:
         event = create_event(
-            event_name=data["event_name"], description="", start_at=start_at, end_at=end_at,
+            event_name=data["event_name"], description="",
+            start_at=start_at, end_at=end_at,
             rules_text="", country_codes=data.get("selected_countries", []),
             rewards=data.get("rewards", []),
             created_by_admin_id=data.get("admin_id", ""),
             reward_pool_amount=data.get("reward_pool_amount", ""),
             reward_pool_currency=data.get("reward_pool_currency", ""),
         )
+        event_id = event.get("event_id", "???")
         await cb.message.edit_text(
-            f"✅ Event yaratildi!\n\n🆔 <code>{event.get('event_id')}</code>\n📌 Status: draft",
+            f"✅ Event yaratildi!\n\n🆔 <code>{event_id}</code>\n📌 Status: draft",
             parse_mode="HTML",
-            reply_markup=_event_actions_kb(event["event_id"], "draft"),
+            reply_markup=_event_actions_kb(event_id, "draft"),
         )
     except Exception as e:
+        logger.error("Event creation failed: %s", e)
         await cb.message.edit_text(f"❌ Xatolik: {e}")
     await state.clear()
     await cb.answer()
 
 
-# ── Leaderboard ──────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# LEADERBOARD
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "🥇 Reyting")
 async def admin_leaderboard(message: Message, **kwargs):
@@ -605,36 +731,42 @@ async def cb_leaderboard(cb: CallbackQuery, **kwargs):
     if not lb:
         await cb.answer("Reyting bo'sh", show_alert=True)
         return
-    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
     title = f"🌍 {code}" if code != "all" else "🌍 Barcha"
-    lines = [f"{medals.get(e['rank'], str(e['rank'])+'.')} {e['full_name']} ({e['country_code']}) — <b>{e['points']}</b>"
+    lines = [f"{_medal(e['rank'])} {e['full_name']} ({e['country_code']}) — <b>{e['points']}</b>"
              for e in lb]
     await cb.message.answer(f"🥇 <b>{title} reytingi</b>\n\n" + "\n".join(lines), parse_mode="HTML")
     await cb.answer()
 
 
-# ── Manual points ────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# MANUAL POINTS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "💰 Ball berish")
 async def admin_manual_points(message: Message, state: FSMContext, **kwargs):
     admin = _get_admin_info(message.from_user.id)
     if not admin:
         return
+    await state.clear()
     await state.set_state(ManualPointsStates.employee_code)
     await state.update_data(admin_id=admin.get("admin_id", ""))
     await message.answer("🆔 Xodim kodini kiriting (masalan UZ-0001):",
-                         reply_markup=ReplyKeyboardMarkup(
-                             keyboard=[[KeyboardButton(text="❌ Bekor qilish")]], resize_keyboard=True))
+                         reply_markup=_cancel_reply_kb())
 
 
 @router.message(ManualPointsStates.employee_code)
 async def mp_employee_code(message: Message, state: FSMContext, **kwargs):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await _restore_admin_kb(message, message.from_user.id)
+        return
     code = message.text.strip().upper()
     emp = get_employee_by_code(code)
     if not emp:
         await message.answer(f"❌ Xodim topilmadi: {code}\nQayta kiriting:")
         return
-    await state.update_data(mp_employee_id=emp["employee_id"], mp_employee_code=emp["employee_code"],
+    await state.update_data(mp_employee_id=emp["employee_id"],
+                            mp_employee_code=emp["employee_code"],
                             mp_country=emp.get("country_code", ""))
     await message.answer(
         f"👤 {emp['full_name']} ({emp['employee_code']})\n\nBall miqdorini tanlang:",
@@ -642,82 +774,108 @@ async def mp_employee_code(message: Message, state: FSMContext, **kwargs):
 
 
 @router.callback_query(F.data.startswith("adm:mp:"))
-async def cb_manual_points(cb: CallbackQuery, state: FSMContext, lang: str, **kwargs):
+async def cb_manual_points(cb: CallbackQuery, state: FSMContext, **kwargs):
     data = await state.get_data()
+    emp_id = data.get("mp_employee_id")
+    if not emp_id:
+        await cb.answer("❌ Xodim topilmadi")
+        await state.clear()
+        return
     points = int(cb.data.split(":")[2])
     reason = "manual_bonus" if points > 0 else "manual_penalty"
     try:
         manual_adjust(
-            employee_id=data["mp_employee_id"], employee_code=data["mp_employee_code"],
-            points_delta=points, reason_code=reason, admin_id=data.get("admin_id", ""),
+            employee_id=emp_id, employee_code=data.get("mp_employee_code", ""),
+            points_delta=points, reason_code=reason,
+            admin_id=data.get("admin_id", ""),
             country_code=data.get("mp_country", ""),
         )
-        await cb.message.edit_reply_markup(reply_markup=None)
-        await cb.message.answer(f"✅ {data['mp_employee_code']}: {points:+d} ball")
+        try:
+            await cb.message.edit_reply_markup(reply_markup=None)
+        except Exception:
+            pass
+        await cb.message.answer(f"✅ {data.get('mp_employee_code', '')}: {points:+d} ball")
     except Exception as e:
         await cb.message.answer(f"❌ Xatolik: {e}")
     await state.clear()
-    admin = _get_admin_info(cb.from_user.id)
-    role = admin.get("role_code", "ga") if admin else "ga"
-    await cb.message.answer("👑 Admin panel", reply_markup=_admin_keyboard(lang, role))
+    await _restore_admin_kb(cb.message, cb.from_user.id)
     await cb.answer()
 
 
-# ── Employee status ──────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# EMPLOYEE STATUS
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "🔒 Xodim statusi")
 async def admin_emp_status(message: Message, state: FSMContext, **kwargs):
     admin = _get_admin_info(message.from_user.id)
     if not admin:
         return
+    await state.clear()
     await state.set_state(EmployeeStatusStates.employee_code)
-    await message.answer("🆔 Xodim kodini kiriting:",
-                         reply_markup=ReplyKeyboardMarkup(
-                             keyboard=[[KeyboardButton(text="❌ Bekor qilish")]], resize_keyboard=True))
+    await message.answer("🆔 Xodim kodini kiriting:", reply_markup=_cancel_reply_kb())
 
 
 @router.message(EmployeeStatusStates.employee_code)
 async def es_employee_code(message: Message, state: FSMContext, **kwargs):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await _restore_admin_kb(message, message.from_user.id)
+        return
     code = message.text.strip().upper()
     emp = get_employee_by_code(code)
     if not emp:
         await message.answer(f"❌ Xodim topilmadi: {code}")
         return
-    await state.update_data(es_employee_id=emp["employee_id"], es_employee_code=emp["employee_code"])
+    await state.update_data(es_employee_id=emp["employee_id"],
+                            es_employee_code=emp["employee_code"])
     await message.answer(
-        f"👤 {emp['full_name']} ({emp['employee_code']})\n📌 Hozirgi status: {emp.get('status')}\n\nYangi status:",
+        f"👤 {emp['full_name']} ({emp['employee_code']})\n"
+        f"📌 Hozirgi: {emp.get('status')}\n\nYangi status:",
         reply_markup=_status_kb())
 
 
 @router.callback_query(F.data.startswith("adm:status:"))
-async def cb_set_status(cb: CallbackQuery, state: FSMContext, lang: str, **kwargs):
+async def cb_set_status(cb: CallbackQuery, state: FSMContext, **kwargs):
     data = await state.get_data()
+    emp_id = data.get("es_employee_id")
+    if not emp_id:
+        await cb.answer("❌ Xodim topilmadi")
+        await state.clear()
+        return
     new_status = cb.data.split(":")[2]
-    update_employee_status(data["es_employee_id"], new_status)
-    await cb.message.edit_reply_markup(reply_markup=None)
-    await cb.message.answer(f"✅ {data['es_employee_code']} → {new_status}")
+    update_employee_status(emp_id, new_status)
+    try:
+        await cb.message.edit_reply_markup(reply_markup=None)
+    except Exception:
+        pass
+    await cb.message.answer(f"✅ {data.get('es_employee_code', '')} → {new_status}")
     await state.clear()
-    admin = _get_admin_info(cb.from_user.id)
-    role = admin.get("role_code", "ga") if admin else "ga"
-    await cb.message.answer("👑 Admin panel", reply_markup=_admin_keyboard(lang, role))
+    await _restore_admin_kb(cb.message, cb.from_user.id)
     await cb.answer()
 
 
-# ── Add admin ────────────────────────────────────────────────────────────────
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADD ADMIN
+# ═══════════════════════════════════════════════════════════════════════════════
 
 @router.message(F.text == "➕ GA/Admin qo'shish")
 async def admin_add_admin(message: Message, state: FSMContext, **kwargs):
     if not is_super_admin(message.from_user.id):
         await message.answer("⛔ Faqat Super Admin uchun.")
         return
+    await state.clear()
     await state.set_state(AddAdminStates.tg_id)
     await message.answer("🆔 Yangi admin Telegram ID sini kiriting:",
-                         reply_markup=ReplyKeyboardMarkup(
-                             keyboard=[[KeyboardButton(text="❌ Bekor qilish")]], resize_keyboard=True))
+                         reply_markup=_cancel_reply_kb())
 
 
 @router.message(AddAdminStates.tg_id)
 async def aa_tg_id(message: Message, state: FSMContext, **kwargs):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await _restore_admin_kb(message, message.from_user.id)
+        return
     tg_id = message.text.strip()
     if not tg_id.isdigit():
         await message.answer("❌ Faqat raqam kiriting (Telegram ID):")
@@ -728,7 +886,11 @@ async def aa_tg_id(message: Message, state: FSMContext, **kwargs):
 
 
 @router.message(AddAdminStates.full_name)
-async def aa_name(message: Message, state: FSMContext, lang: str, **kwargs):
+async def aa_name(message: Message, state: FSMContext, **kwargs):
+    if message.text == "❌ Bekor qilish":
+        await state.clear()
+        await _restore_admin_kb(message, message.from_user.id)
+        return
     data = await state.get_data()
     name = message.text.strip()
     try:
@@ -739,5 +901,4 @@ async def aa_name(message: Message, state: FSMContext, lang: str, **kwargs):
     except Exception as e:
         await message.answer(f"❌ Xatolik: {e}")
     await state.clear()
-    await message.answer("👑 Admin panel",
-                         reply_markup=_admin_keyboard(lang, "super_admin"))
+    await _restore_admin_kb(message, message.from_user.id)

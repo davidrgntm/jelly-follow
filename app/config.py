@@ -17,6 +17,7 @@ class Settings(BaseSettings):
 
     DEFAULT_TIMEZONE: str = "Asia/Tashkent"
     APP_ENV: str = "production"
+    BOT_MODE: str = "polling"  # "polling" | "webhook" | "none"
     BOOTSTRAP_ON_START: bool = False
     SEED_SUPER_ADMIN_ON_START: bool = False
 
