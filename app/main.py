@@ -2,6 +2,7 @@
 Jelly Follow — FastAPI Backend
 Supports both polling (local) and webhook (production/Railway)
 """
+
 import logging
 import asyncio
 import os
@@ -22,47 +23,95 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-USE_WEBHOOK = os.getenv("APP_ENV", "development") == "production"
+USE_WEBHOOK = os.getenv("APP_ENV", "development").lower() == "production"
+BOOTSTRAP_ON_START = os.getenv("BOOTSTRAP_ON_START", "false").lower() == "true"
+SEED_SUPER_ADMIN_ON_START = os.getenv("SEED_SUPER_ADMIN_ON_START", "false").lower() == "true"
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     logger.info("=== Jelly Follow starting up ===")
 
+    app.state.bot = None
+    app.state.dp = None
+    app.state.bot_task = None
+    app.state.webhook_enabled = False
+
+    # 1) Google Sheets bootstrap
     try:
-        run_bootstrap()
-        logger.info("Google Sheets bootstrap complete.")
+        if BOOTSTRAP_ON_START:
+            run_bootstrap()
+            logger.info("Google Sheets bootstrap complete.")
+        else:
+            logger.info("BOOTSTRAP_ON_START=false, bootstrap skipped.")
     except Exception as e:
         logger.error(f"Bootstrap failed: {e}")
 
+    # 2) Super admin seed
     try:
-        seed_super_admin(settings.SUPER_ADMIN_TELEGRAM_ID)
+        if SEED_SUPER_ADMIN_ON_START:
+            seed_super_admin(settings.SUPER_ADMIN_TELEGRAM_ID)
+            logger.info("Super admin seed complete.")
+        else:
+            logger.info("SEED_SUPER_ADMIN_ON_START=false, super admin seed skipped.")
     except Exception as e:
         logger.warning(f"Super admin seed failed: {e}")
 
+    # 3) Bot init
     from app.bot.bot import create_bot, create_dispatcher
+
     bot = create_bot()
     dp = create_dispatcher()
 
+    app.state.bot = bot
+    app.state.dp = dp
+
+    # 4) Webhook / Polling
     if USE_WEBHOOK:
-        webhook_url = f"{settings.BASE_URL}/webhook"
-        await bot.set_webhook(webhook_url)
-        logger.info(f"Webhook set: {webhook_url}")
-        app.state.bot = bot
-        app.state.dp = dp
+        webhook_url = f"{str(settings.BASE_URL).rstrip('/')}/webhook"
+        try:
+            await bot.set_webhook(webhook_url)
+            app.state.webhook_enabled = True
+            logger.info(f"Webhook set: {webhook_url}")
+        except Exception as e:
+            logger.error(f"Webhook set failed: {e}")
+            logger.warning("App stays alive. Fix webhook/domain and redeploy.")
     else:
-        task = asyncio.create_task(dp.start_polling(bot))
-        app.state.bot_task = task
-        logger.info("Bot polling started.")
+        try:
+            task = asyncio.create_task(dp.start_polling(bot))
+            app.state.bot_task = task
+            logger.info("Bot polling started.")
+        except Exception as e:
+            logger.error(f"Polling start failed: {e}")
 
     yield
 
-    if USE_WEBHOOK:
-        await bot.delete_webhook()
-    elif hasattr(app.state, "bot_task"):
-        app.state.bot_task.cancel()
+    # Shutdown
+    try:
+        if USE_WEBHOOK and app.state.bot and app.state.webhook_enabled:
+            try:
+                await app.state.bot.delete_webhook()
+                logger.info("Webhook deleted.")
+            except Exception as e:
+                logger.warning(f"Webhook delete failed: {e}")
 
-    logger.info("=== Jelly Follow shutdown ===")
+        if getattr(app.state, "bot_task", None):
+            app.state.bot_task.cancel()
+            try:
+                await app.state.bot_task
+            except asyncio.CancelledError:
+                pass
+            except Exception as e:
+                logger.warning(f"Bot task cancel warning: {e}")
+
+        if app.state.bot:
+            try:
+                await app.state.bot.session.close()
+            except Exception as e:
+                logger.warning(f"Bot session close failed: {e}")
+
+    finally:
+        logger.info("=== Jelly Follow shutdown ===")
 
 
 app = FastAPI(title="Jelly Follow API", version="1.0.0", lifespan=lifespan)
@@ -86,11 +135,26 @@ app.include_router(qr.router)
 app.include_router(internal.router)
 
 
+@app.get("/")
+async def root():
+    return {
+        "ok": True,
+        "service": "Jelly Follow API",
+        "env": os.getenv("APP_ENV", "development"),
+        "webhook_mode": USE_WEBHOOK,
+    }
+
+
 @app.post("/webhook")
 async def telegram_webhook(request: Request):
     from aiogram.types import Update
-    bot = request.app.state.bot
-    dp = request.app.state.dp
+
+    bot = getattr(request.app.state, "bot", None)
+    dp = getattr(request.app.state, "dp", None)
+
+    if not bot or not dp:
+        return {"ok": False, "error": "bot_not_ready"}
+
     data = await request.json()
     update = Update.model_validate(data)
     await dp.feed_update(bot, update)
