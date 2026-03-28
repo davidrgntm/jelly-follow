@@ -1,10 +1,6 @@
-"""
-Multi-language translation system.
-All bot texts managed here. No hardcoded strings in handlers.
-"""
+"""Multi-language translation system. All bot texts managed here."""
 
-TRANSLATIONS: dict[str, dict[str, str]] = {
-    # ── Language select ──────────────────────────────────────────────────────
+TRANSLATIONS = {
     "start.choose_lang": {
         "uz": "🌐 Tilni tanlang / Выберите язык / Choose language:",
         "ru": "🌐 Tilni tanlang / Выберите язык / Choose language:",
@@ -17,41 +13,28 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
     "lang.en": {"uz": "🇬🇧 English", "ru": "🇬🇧 English", "en": "🇬🇧 English", "kg": "🇬🇧 English", "az": "🇬🇧 English"},
     "lang.kg": {"uz": "🇰🇬 Кыргызча", "ru": "🇰🇬 Кыргызча", "en": "🇰🇬 Кыргызча", "kg": "🇰🇬 Кыргызча", "az": "🇰🇬 Кыргызча"},
     "lang.az": {"uz": "🇦🇿 Azərbaycanca", "ru": "🇦🇿 Azərbaycanca", "en": "🇦🇿 Azərbaycanca", "kg": "🇦🇿 Azərbaycanca", "az": "🇦🇿 Azərbaycanca"},
-
-    # ── Registration ─────────────────────────────────────────────────────────
     "reg.send_phone": {
-        "uz": "📱 Telefon raqamingizni yuboring:",
-        "ru": "📱 Отправьте ваш номер телефона:",
-        "en": "📱 Please send your phone number:",
-        "kg": "📱 Телефон номериңизди жөнөтүңүз:",
+        "uz": "📱 Telefon raqamingizni yuboring:", "ru": "📱 Отправьте ваш номер телефона:",
+        "en": "📱 Please send your phone number:", "kg": "📱 Телефон номериңизди жөнөтүңүз:",
         "az": "📱 Telefon nömrənizi göndərin:",
     },
     "reg.send_phone_btn": {
-        "uz": "📱 Raqamni yuborish",
-        "ru": "📱 Отправить номер",
-        "en": "📱 Share phone number",
-        "kg": "📱 Номерди жөнөтүү",
-        "az": "📱 Nömrəni göndər",
+        "uz": "📱 Raqamni yuborish", "ru": "📱 Отправить номер",
+        "en": "📱 Share phone number", "kg": "📱 Номерди жөнөтүү", "az": "📱 Nömrəni göndər",
     },
     "reg.send_name": {
-        "uz": "✍️ To'liq ismingizni kiriting (Familiya Ism):",
-        "ru": "✍️ Введите ваше полное имя (Фамилия Имя):",
-        "en": "✍️ Enter your full name (Last First):",
-        "kg": "✍️ Толук атыңызды киргизиңиз:",
+        "uz": "✍️ To'liq ismingizni kiriting (Familiya Ism):", "ru": "✍️ Введите ваше полное имя (Фамилия Имя):",
+        "en": "✍️ Enter your full name (Last First):", "kg": "✍️ Толук атыңызды киргизиңиз:",
         "az": "✍️ Tam adınızı daxil edin:",
     },
     "reg.choose_country": {
-        "uz": "🌍 Mamlakatingizni tanlang:",
-        "ru": "🌍 Выберите вашу страну:",
-        "en": "🌍 Choose your country:",
-        "kg": "🌍 Өлкөңүздү тандаңыз:",
-        "az": "🌍 Ölkənizi seçin:",
+        "uz": "🌍 Mamlakatingizni tanlang:", "ru": "🌍 Выберите вашу страну:",
+        "en": "🌍 Choose your country:", "kg": "🌍 Өлкөңүздү тандаңыз:", "az": "🌍 Ölkənizi seçin:",
     },
     "country.UZ": {"uz": "🇺🇿 O'zbekiston", "ru": "🇺🇿 Узбекистан", "en": "🇺🇿 Uzbekistan", "kg": "🇺🇿 Өзбекстан", "az": "🇺🇿 Özbəkistan"},
     "country.RU": {"uz": "🇷🇺 Rossiya", "ru": "🇷🇺 Россия", "en": "🇷🇺 Russia", "kg": "🇷🇺 Россия", "az": "🇷🇺 Rusiya"},
     "country.KG": {"uz": "🇰🇬 Qirg'iziston", "ru": "🇰🇬 Кыргызстан", "en": "🇰🇬 Kyrgyzstan", "kg": "🇰🇬 Кыргызстан", "az": "🇰🇬 Qırğızstan"},
     "country.AZ": {"uz": "🇦🇿 Ozarbayjon", "ru": "🇦🇿 Азербайджан", "en": "🇦🇿 Azerbaijan", "kg": "🇦🇿 Азербайжан", "az": "🇦🇿 Azərbaycan"},
-
     "reg.success": {
         "uz": "✅ Ro'yxatdan o'tish muvaffaqiyatli!\n\n👤 Xush kelibsiz, <b>{name}</b>!\n🆔 Sizning kodingiz: <code>{code}</code>",
         "ru": "✅ Регистрация прошла успешно!\n\n👤 Добро пожаловать, <b>{name}</b>!\n🆔 Ваш код: <code>{code}</code>",
@@ -60,383 +43,83 @@ TRANSLATIONS: dict[str, dict[str, str]] = {
         "az": "✅ Qeydiyyat uğurlu oldu!\n\n👤 Xoş gəldiniz, <b>{name}</b>!\n🆔 Sizin kodunuz: <code>{code}</code>",
     },
     "reg.already": {
-        "uz": "ℹ️ Siz allaqachon ro'yxatdan o'tgansiz.",
-        "ru": "ℹ️ Вы уже зарегистрированы.",
-        "en": "ℹ️ You are already registered.",
-        "kg": "ℹ️ Сиз мурунтан катталгансыз.",
+        "uz": "ℹ️ Siz allaqachon ro'yxatdan o'tgansiz.", "ru": "ℹ️ Вы уже зарегистрированы.",
+        "en": "ℹ️ You are already registered.", "kg": "ℹ️ Сиз мурунтан катталгансыз.",
         "az": "ℹ️ Siz artıq qeydiyyatdan keçmisiniz.",
     },
-
-    # ── Main menu ────────────────────────────────────────────────────────────
-    "menu.main": {
-        "uz": "🏠 Asosiy menyu",
-        "ru": "🏠 Главное меню",
-        "en": "🏠 Main menu",
-        "kg": "🏠 Башкы меню",
-        "az": "🏠 Əsas menyu",
-    },
-    "menu.profile": {
-        "uz": "👤 Profilim",
-        "ru": "👤 Мой профиль",
-        "en": "👤 My Profile",
-        "kg": "👤 Менин профилим",
-        "az": "👤 Profilim",
-    },
-    "menu.my_qr": {
-        "uz": "📱 Mening QR kodim",
-        "ru": "📱 Мой QR-код",
-        "en": "📱 My QR Code",
-        "kg": "📱 Менин QR кодум",
-        "az": "📱 Mənim QR kodum",
-    },
-    "menu.my_link": {
-        "uz": "🔗 Mening linkim",
-        "ru": "🔗 Моя ссылка",
-        "en": "🔗 My Link",
-        "kg": "🔗 Менин шилтемем",
-        "az": "🔗 Mənim linkım",
-    },
-    "menu.stats": {
-        "uz": "📊 Mening statistikam",
-        "ru": "📊 Моя статистика",
-        "en": "📊 My Stats",
-        "kg": "📊 Менин статистикам",
-        "az": "📊 Statistikam",
-    },
-    "menu.events": {
-        "uz": "🏆 Eventlar",
-        "ru": "🏆 Мероприятия",
-        "en": "🏆 Events",
-        "kg": "🏆 Иш-чаралар",
-        "az": "🏆 Tədbirlər",
-    },
-    "menu.rating": {
-        "uz": "🥇 Reyting",
-        "ru": "🥇 Рейтинг",
-        "en": "🥇 Rating",
-        "kg": "🥇 Рейтинг",
-        "az": "🥇 Reytinq",
-    },
-    "menu.change_lang": {
-        "uz": "🌐 Tilni almashtirish",
-        "ru": "🌐 Сменить язык",
-        "en": "🌐 Change Language",
-        "kg": "🌐 Тилди алмаштыруу",
-        "az": "🌐 Dili dəyiş",
-    },
-    "menu.help": {
-        "uz": "❓ Yordam",
-        "ru": "❓ Помощь",
-        "en": "❓ Help",
-        "kg": "❓ Жардам",
-        "az": "❓ Kömək",
-    },
-
-    # ── Profile ──────────────────────────────────────────────────────────────
+    "menu.main": {"uz": "🏠 Asosiy menyu", "ru": "🏠 Главное меню", "en": "🏠 Main menu", "kg": "🏠 Башкы меню", "az": "🏠 Əsas menyu"},
+    "menu.profile": {"uz": "👤 Profilim", "ru": "👤 Мой профиль", "en": "👤 My profile", "kg": "👤 Менин профилим", "az": "👤 Profilim"},
+    "menu.my_qr": {"uz": "📱 QR kodim", "ru": "📱 Мой QR", "en": "📱 My QR code", "kg": "📱 QR кодум", "az": "📱 QR kodum"},
+    "menu.my_link": {"uz": "🔗 Mening linkim", "ru": "🔗 Моя ссылка", "en": "🔗 My link", "kg": "🔗 Менин шилтемем", "az": "🔗 Linkim"},
+    "menu.stats": {"uz": "📊 Statistikam", "ru": "📊 Статистика", "en": "📊 My stats", "kg": "📊 Статистикам", "az": "📊 Statistikam"},
+    "menu.events": {"uz": "🏆 Eventlar", "ru": "🏆 События", "en": "🏆 Events", "kg": "🏆 Иш-чаралар", "az": "🏆 Tədbirlər"},
+    "menu.rating": {"uz": "🥇 Reyting", "ru": "🥇 Рейтинг", "en": "🥇 Rating", "kg": "🥇 Рейтинг", "az": "🥇 Reytinq"},
+    "menu.change_lang": {"uz": "🌐 Tilni almashtirish", "ru": "🌐 Сменить язык", "en": "🌐 Change language", "kg": "🌐 Тилди алмаштыруу", "az": "🌐 Dili dəyiş"},
+    "menu.help": {"uz": "❓ Yordam", "ru": "❓ Помощь", "en": "❓ Help", "kg": "❓ Жардам", "az": "❓ Kömək"},
     "profile.info": {
-        "uz": (
-            "👤 <b>Mening profilim</b>\n\n"
-            "📛 Ism: <b>{name}</b>\n"
-            "📱 Telefon: <b>{phone}</b>\n"
-            "🌍 Mamlakat: <b>{country}</b>\n"
-            "🆔 Kod: <code>{code}</code>\n"
-            "📊 Status: <b>{status}</b>\n"
-            "⭐ Jami ball: <b>{points}</b>"
-        ),
-        "ru": (
-            "👤 <b>Мой профиль</b>\n\n"
-            "📛 Имя: <b>{name}</b>\n"
-            "📱 Телефон: <b>{phone}</b>\n"
-            "🌍 Страна: <b>{country}</b>\n"
-            "🆔 Код: <code>{code}</code>\n"
-            "📊 Статус: <b>{status}</b>\n"
-            "⭐ Всего очков: <b>{points}</b>"
-        ),
-        "en": (
-            "👤 <b>My Profile</b>\n\n"
-            "📛 Name: <b>{name}</b>\n"
-            "📱 Phone: <b>{phone}</b>\n"
-            "🌍 Country: <b>{country}</b>\n"
-            "🆔 Code: <code>{code}</code>\n"
-            "📊 Status: <b>{status}</b>\n"
-            "⭐ Total points: <b>{points}</b>"
-        ),
-        "kg": (
-            "👤 <b>Менин профилим</b>\n\n"
-            "📛 Ат: <b>{name}</b>\n"
-            "📱 Телефон: <b>{phone}</b>\n"
-            "🌍 Өлкө: <b>{country}</b>\n"
-            "🆔 Код: <code>{code}</code>\n"
-            "📊 Статус: <b>{status}</b>\n"
-            "⭐ Бардык балл: <b>{points}</b>"
-        ),
-        "az": (
-            "👤 <b>Profilim</b>\n\n"
-            "📛 Ad: <b>{name}</b>\n"
-            "📱 Telefon: <b>{phone}</b>\n"
-            "🌍 Ölkə: <b>{country}</b>\n"
-            "🆔 Kod: <code>{code}</code>\n"
-            "📊 Status: <b>{status}</b>\n"
-            "⭐ Ümumi bal: <b>{points}</b>"
-        ),
+        "uz": "👤 <b>Profil</b>\n\n📛 Ism: <b>{name}</b>\n📱 Telefon: {phone}\n🌍 Mamlakat: {country}\n🆔 Kod: <code>{code}</code>\n📌 Status: {status}\n⭐ Ballar: <b>{points}</b>",
+        "ru": "👤 <b>Профиль</b>\n\n📛 Имя: <b>{name}</b>\n📱 Телефон: {phone}\n🌍 Страна: {country}\n🆔 Код: <code>{code}</code>\n📌 Статус: {status}\n⭐ Баллы: <b>{points}</b>",
+        "en": "👤 <b>Profile</b>\n\n📛 Name: <b>{name}</b>\n📱 Phone: {phone}\n🌍 Country: {country}\n🆔 Code: <code>{code}</code>\n📌 Status: {status}\n⭐ Points: <b>{points}</b>",
+        "kg": "👤 <b>Профил</b>\n\n📛 Аты: <b>{name}</b>\n📱 Телефон: {phone}\n🌍 Өлкө: {country}\n🆔 Код: <code>{code}</code>\n📌 Статус: {status}\n⭐ Упайлар: <b>{points}</b>",
+        "az": "👤 <b>Profil</b>\n\n📛 Ad: <b>{name}</b>\n📱 Telefon: {phone}\n🌍 Ölkə: {country}\n🆔 Kod: <code>{code}</code>\n📌 Status: {status}\n⭐ Ballar: <b>{points}</b>",
     },
-
-    # ── Stats ─────────────────────────────────────────────────────────────────
-    "stats.info": {
-        "uz": (
-            "📊 <b>Mening statistikam</b>\n\n"
-            "⭐ Jami ball: <b>{total}</b>\n"
-            "📅 Bugun: <b>{today}</b>\n"
-            "📆 Bu hafta: <b>{week}</b>\n"
-            "🗓 Bu oy: <b>{month}</b>\n\n"
-            "📱 Unique qurilmalar: <b>{unique}</b>\n"
-            "🔄 Takror skanlar: <b>{duplicate}</b>"
-        ),
-        "ru": (
-            "📊 <b>Моя статистика</b>\n\n"
-            "⭐ Всего: <b>{total}</b>\n"
-            "📅 Сегодня: <b>{today}</b>\n"
-            "📆 На этой неделе: <b>{week}</b>\n"
-            "🗓 В этом месяце: <b>{month}</b>\n\n"
-            "📱 Уникальных устройств: <b>{unique}</b>\n"
-            "🔄 Повторных сканов: <b>{duplicate}</b>"
-        ),
-        "en": (
-            "📊 <b>My Stats</b>\n\n"
-            "⭐ Total: <b>{total}</b>\n"
-            "📅 Today: <b>{today}</b>\n"
-            "📆 This week: <b>{week}</b>\n"
-            "🗓 This month: <b>{month}</b>\n\n"
-            "📱 Unique devices: <b>{unique}</b>\n"
-            "🔄 Duplicate scans: <b>{duplicate}</b>"
-        ),
-        "kg": (
-            "📊 <b>Менин статистикам</b>\n\n"
-            "⭐ Баары: <b>{total}</b>\n"
-            "📅 Бүгүн: <b>{today}</b>\n"
-            "📆 Бул жума: <b>{week}</b>\n"
-            "🗓 Бул ай: <b>{month}</b>\n\n"
-            "📱 Уникалдуу түзмөктөр: <b>{unique}</b>\n"
-            "🔄 Кайталанган скандар: <b>{duplicate}</b>"
-        ),
-        "az": (
-            "📊 <b>Statistikam</b>\n\n"
-            "⭐ Cəmi: <b>{total}</b>\n"
-            "📅 Bu gün: <b>{today}</b>\n"
-            "📆 Bu həftə: <b>{week}</b>\n"
-            "🗓 Bu ay: <b>{month}</b>\n\n"
-            "📱 Unikal cihazlar: <b>{unique}</b>\n"
-            "🔄 Təkrar skanlar: <b>{duplicate}</b>"
-        ),
-    },
-
-    # ── QR ───────────────────────────────────────────────────────────────────
     "qr.caption": {
-        "uz": "📱 <b>Sizning QR kodingiz</b>\n\n🔗 Link: {link}\n\nMijozga shu QR ni ko'rsating!",
-        "ru": "📱 <b>Ваш QR-код</b>\n\n🔗 Ссылка: {link}\n\nПокажите этот QR клиенту!",
-        "en": "📱 <b>Your QR Code</b>\n\n🔗 Link: {link}\n\nShow this QR to your customer!",
-        "kg": "📱 <b>Сиздин QR кодуңуз</b>\n\n🔗 Шилтеме: {link}\n\nБул QR кодду кардарга көрсөтүңүз!",
-        "az": "📱 <b>Sizin QR kodunuz</b>\n\n🔗 Link: {link}\n\nBu QR kodu müştəriyə göstərin!",
+        "uz": "📱 <b>Sizning QR kodingiz</b>\n\n🔗 Link: {link}\n\nMijozlarga shu QR ni ko'rsating!", "ru": "📱 <b>Ваш QR код</b>\n\n🔗 Ссылка: {link}\n\nПокажите этот QR клиентам!",
+        "en": "📱 <b>Your QR code</b>\n\n🔗 Link: {link}\n\nShow this QR to customers!", "kg": "📱 <b>Сиздин QR кодуңуз</b>\n\n🔗 Шилтеме: {link}\n\nКардарларга көрсөтүңүз!",
+        "az": "📱 <b>QR kodunuz</b>\n\n🔗 Link: {link}\n\nMüştərilərə göstərin!",
     },
-    "qr.resend": {
-        "uz": "🔄 Qayta yuborish",
-        "ru": "🔄 Отправить снова",
-        "en": "🔄 Resend",
-        "kg": "🔄 Кайра жөнөтүү",
-        "az": "🔄 Yenidən göndər",
+    "qr.resend": {"uz": "🔄 Qayta yuborish", "ru": "🔄 Отправить снова", "en": "🔄 Resend", "kg": "🔄 Кайра жөнөтүү", "az": "🔄 Yenidən göndər"},
+    "stats.info": {
+        "uz": "📊 <b>Statistika</b>\n\n⭐ Jami: <b>{total}</b>\n📅 Bugun: <b>{today}</b>\n📆 Hafta: <b>{week}</b>\n🗓 Oy: <b>{month}</b>\n\n📱 Unique: <b>{unique}</b>\n🔁 Takror: <b>{duplicate}</b>",
+        "ru": "📊 <b>Статистика</b>\n\n⭐ Всего: <b>{total}</b>\n📅 Сегодня: <b>{today}</b>\n📆 Неделя: <b>{week}</b>\n🗓 Месяц: <b>{month}</b>\n\n📱 Уникальные: <b>{unique}</b>\n🔁 Повторные: <b>{duplicate}</b>",
+        "en": "📊 <b>Statistics</b>\n\n⭐ Total: <b>{total}</b>\n📅 Today: <b>{today}</b>\n📆 Week: <b>{week}</b>\n🗓 Month: <b>{month}</b>\n\n📱 Unique: <b>{unique}</b>\n🔁 Duplicates: <b>{duplicate}</b>",
+        "kg": "📊 <b>Статистика</b>\n\n⭐ Бардыгы: <b>{total}</b>\n📅 Бүгүн: <b>{today}</b>\n📆 Апта: <b>{week}</b>\n🗓 Ай: <b>{month}</b>\n\n📱 Уникалдуу: <b>{unique}</b>\n🔁 Кайталанган: <b>{duplicate}</b>",
+        "az": "📊 <b>Statistika</b>\n\n⭐ Cəmi: <b>{total}</b>\n📅 Bu gün: <b>{today}</b>\n📆 Həftə: <b>{week}</b>\n🗓 Ay: <b>{month}</b>\n\n📱 Unikal: <b>{unique}</b>\n🔁 Təkrar: <b>{duplicate}</b>",
     },
-
-    # ── Events ───────────────────────────────────────────────────────────────
     "events.list_empty": {
-        "uz": "📭 Hozircha faol eventlar yo'q.",
-        "ru": "📭 Активных мероприятий пока нет.",
-        "en": "📭 No active events at the moment.",
-        "kg": "📭 Азырынча жигердүү иш-чаралар жок.",
-        "az": "📭 Hazırda aktiv tədbir yoxdur.",
+        "uz": "ℹ️ Hozircha faol eventlar yo'q.", "ru": "ℹ️ Активных событий пока нет.",
+        "en": "ℹ️ No active events at the moment.", "kg": "ℹ️ Азырча иш-чаралар жок.", "az": "ℹ️ Hal-hazırda aktiv tədbir yoxdur.",
     },
-    "events.join": {
-        "uz": "✅ Qatnashaman",
-        "ru": "✅ Участвую",
-        "en": "✅ I'll join",
-        "kg": "✅ Катышам",
-        "az": "✅ Qatılıram",
-    },
-    "events.decline": {
-        "uz": "❌ Qatnashmayman",
-        "ru": "❌ Не участвую",
-        "en": "❌ I'll pass",
-        "kg": "❌ Катышпайм",
-        "az": "❌ Qatılmıram",
-    },
-    "events.joined": {
-        "uz": "✅ Siz eventga ro'yxatdan o'tdingiz!",
-        "ru": "✅ Вы зарегистрировались на мероприятие!",
-        "en": "✅ You joined the event!",
-        "kg": "✅ Сиз иш-чарага катталдыңыз!",
-        "az": "✅ Siz tədbirə qeydiyyatdan keçdiniz!",
-    },
-    "events.declined": {
-        "uz": "❌ Siz eventdan voz kechdingiz.",
-        "ru": "❌ Вы отказались от участия.",
-        "en": "❌ You declined the event.",
-        "kg": "❌ Сиз иш-чарадан баш тарттыңыз.",
-        "az": "❌ Siz tədbirə qatılmamağı seçdiniz.",
-    },
-
-    # ── Event notification ───────────────────────────────────────────────────
-    "event.notification": {
-        "uz": (
-            "🏆 <b>Yangi event boshlandi!</b>\n\n"
-            "📌 <b>{event_name}</b>\n"
-            "{description}\n\n"
-            "📅 Boshlanish: {start_at}\n"
-            "⏰ Tugash: {end_at}\n\n"
-            "📋 <b>Shartlar:</b>\n{rules}\n\n"
-            "🎁 <b>Mukofotlar:</b>\n{rewards}"
-        ),
-        "ru": (
-            "🏆 <b>Новое мероприятие!</b>\n\n"
-            "📌 <b>{event_name}</b>\n"
-            "{description}\n\n"
-            "📅 Начало: {start_at}\n"
-            "⏰ Конец: {end_at}\n\n"
-            "📋 <b>Условия:</b>\n{rules}\n\n"
-            "🎁 <b>Призы:</b>\n{rewards}"
-        ),
-        "en": (
-            "🏆 <b>New Event Started!</b>\n\n"
-            "📌 <b>{event_name}</b>\n"
-            "{description}\n\n"
-            "📅 Start: {start_at}\n"
-            "⏰ End: {end_at}\n\n"
-            "📋 <b>Rules:</b>\n{rules}\n\n"
-            "🎁 <b>Rewards:</b>\n{rewards}"
-        ),
-        "kg": (
-            "🏆 <b>Жаңы иш-чара башталды!</b>\n\n"
-            "📌 <b>{event_name}</b>\n"
-            "{description}\n\n"
-            "📅 Башталышы: {start_at}\n"
-            "⏰ Аяктоо: {end_at}\n\n"
-            "📋 <b>Шарттар:</b>\n{rules}\n\n"
-            "🎁 <b>Сыйлыктар:</b>\n{rewards}"
-        ),
-        "az": (
-            "🏆 <b>Yeni Tədbir Başlandı!</b>\n\n"
-            "📌 <b>{event_name}</b>\n"
-            "{description}\n\n"
-            "📅 Başlanğıc: {start_at}\n"
-            "⏰ Bitmə: {end_at}\n\n"
-            "📋 <b>Şərtlər:</b>\n{rules}\n\n"
-            "🎁 <b>Mükafatlar:</b>\n{rewards}"
-        ),
-    },
-
-    # ── Rating ───────────────────────────────────────────────────────────────
-    "rating.title": {
-        "uz": "🥇 <b>Reyting — {country}</b>\n\n",
-        "ru": "🥇 <b>Рейтинг — {country}</b>\n\n",
-        "en": "🥇 <b>Rating — {country}</b>\n\n",
-        "kg": "🥇 <b>Рейтинг — {country}</b>\n\n",
-        "az": "🥇 <b>Reytinq — {country}</b>\n\n",
-    },
-    "rating.my_rank": {
-        "uz": "\n\n📍 Sizning o'rningiz: <b>{rank}</b>",
-        "ru": "\n\n📍 Ваше место: <b>{rank}</b>",
-        "en": "\n\n📍 Your rank: <b>{rank}</b>",
-        "kg": "\n\n📍 Сиздин орун: <b>{rank}</b>",
-        "az": "\n\n📍 Sizin yeriniz: <b>{rank}</b>",
-    },
-    "rating.empty": {
-        "uz": "📭 Hali reyting ma'lumotlari yo'q.",
-        "ru": "📭 Данных рейтинга пока нет.",
-        "en": "📭 No rating data yet.",
-        "kg": "📭 Рейтинг маалыматтары жок.",
-        "az": "📭 Hələ reytinq məlumatı yoxdur.",
-    },
-
-    # ── Help ─────────────────────────────────────────────────────────────────
+    "events.join": {"uz": "✅ Qatnashaman", "ru": "✅ Участвую", "en": "✅ Join", "kg": "✅ Катышам", "az": "✅ Qatılıram"},
+    "events.decline": {"uz": "❌ Qatnashmayman", "ru": "❌ Не участвую", "en": "❌ Decline", "kg": "❌ Катышпайм", "az": "❌ Qatılmıram"},
+    "events.joined": {"uz": "✅ Qatnashishingiz tasdiqlandi!", "ru": "✅ Участие подтверждено!", "en": "✅ Participation confirmed!", "kg": "✅ Катышуу тастыкталды!", "az": "✅ İştirak təsdiqləndi!"},
+    "events.declined": {"uz": "❌ Rad etildi", "ru": "❌ Отклонено", "en": "❌ Declined", "kg": "❌ Четке кагылды", "az": "❌ İmtina edildi"},
+    "rating.title": {"uz": "🥇 <b>{country} reytingi</b>\n\n", "ru": "🥇 <b>Рейтинг {country}</b>\n\n", "en": "🥇 <b>{country} rating</b>\n\n", "kg": "🥇 <b>{country} рейтинги</b>\n\n", "az": "🥇 <b>{country} reytinqi</b>\n\n"},
+    "rating.my_rank": {"uz": "\n\n📍 Sizning o'rningiz: <b>{rank}</b>", "ru": "\n\n📍 Ваше место: <b>{rank}</b>", "en": "\n\n📍 Your rank: <b>{rank}</b>", "kg": "\n\n📍 Сиздин ордуңуз: <b>{rank}</b>", "az": "\n\n📍 Sizin yeriniz: <b>{rank}</b>"},
+    "rating.empty": {"uz": "ℹ️ Reyting hali bo'sh.", "ru": "ℹ️ Рейтинг пока пуст.", "en": "ℹ️ Rating is empty.", "kg": "ℹ️ Рейтинг бош.", "az": "ℹ️ Reytinq boşdur."},
+    "generic.error": {"uz": "❌ Xatolik yuz berdi. Qayta urinib ko'ring.", "ru": "❌ Произошла ошибка.", "en": "❌ An error occurred.", "kg": "❌ Ката кетти.", "az": "❌ Xəta baş verdi."},
+    "generic.not_registered": {"uz": "⚠️ Avval ro'yxatdan o'ting: /start", "ru": "⚠️ Сначала зарегистрируйтесь: /start", "en": "⚠️ Register first: /start", "kg": "⚠️ Биринчи катталыңыз: /start", "az": "⚠️ Əvvəlcə qeydiyyatdan keçin: /start"},
+    "generic.lang_changed": {"uz": "✅ Til o'zgartirildi!", "ru": "✅ Язык изменён!", "en": "✅ Language changed!", "kg": "✅ Тил алмашты!", "az": "✅ Dil dəyişdirildi!"},
     "help.text": {
-        "uz": (
-            "❓ <b>Yordam</b>\n\n"
-            "Bu bot Jelly xodimlariga mijozlarni Instagram sahifasiga olib kelishni kuzatadi.\n\n"
-            "1️⃣ QR kodingizni mijozga ko'rsating\n"
-            "2️⃣ Mijoz skanerlaydi va Instagram'ga o'tadi\n"
-            "3️⃣ Siz ball to'playsiz\n\n"
-            "Muammo bo'lsa adminizga murojaat qiling."
-        ),
-        "ru": (
-            "❓ <b>Помощь</b>\n\n"
-            "Этот бот помогает сотрудникам Jelly отслеживать привлечение клиентов в Instagram.\n\n"
-            "1️⃣ Покажите QR-код клиенту\n"
-            "2️⃣ Клиент сканирует и переходит в Instagram\n"
-            "3️⃣ Вы набираете очки\n\n"
-            "При проблемах обратитесь к своему администратору."
-        ),
-        "en": (
-            "❓ <b>Help</b>\n\n"
-            "This bot helps Jelly employees track Instagram followers.\n\n"
-            "1️⃣ Show your QR code to a customer\n"
-            "2️⃣ Customer scans and goes to Instagram\n"
-            "3️⃣ You earn points\n\n"
-            "Contact your admin if you have any issues."
-        ),
-        "kg": (
-            "❓ <b>Жардам</b>\n\n"
-            "Бул бот Jelly кызматкерлерине кардарларды Instagram'га тартууну байкоого жардам берет.\n\n"
-            "1️⃣ QR кодду кардарга көрсөтүңүз\n"
-            "2️⃣ Кардар скандайт жана Instagram'га өтөт\n"
-            "3️⃣ Сиз балл топтойсуз\n\n"
-            "Көйгөй болсо администраторуңузга кайрылыңыз."
-        ),
-        "az": (
-            "❓ <b>Kömək</b>\n\n"
-            "Bu bot Jelly işçilərinə müştəriləri Instagram səhifəsinə cəlb etməyi izləməyə kömək edir.\n\n"
-            "1️⃣ QR kodu müştəriyə göstərin\n"
-            "2️⃣ Müştəri skan edir və Instagram'a keçir\n"
-            "3️⃣ Siz bal toplayırsınız\n\n"
-            "Problem olsa admininizdə əlaqə saxlayın."
-        ),
+        "uz": "❓ <b>Yordam</b>\n\n1. QR kodingizni mijozlarga ko'rsating\n2. Mijoz QR ni skanerlaydi\n3. Instagram sahifasiga o'tadi\n4. Siz ball olasiz!\n\n1 unique qurilma = 1 ball",
+        "ru": "❓ <b>Помощь</b>\n\n1. Покажите QR код клиентам\n2. Клиент сканирует QR\n3. Переходит на страницу Instagram\n4. Вы получаете балл!\n\n1 уникальное устройство = 1 балл",
+        "en": "❓ <b>Help</b>\n\n1. Show your QR code to customers\n2. Customer scans the QR\n3. They go to Instagram page\n4. You earn a point!\n\n1 unique device = 1 point",
+        "kg": "❓ <b>Жардам</b>\n\n1. QR кодуңузду кардарларга көрсөтүңүз\n2. Кардар QR ны скандайт\n3. Инстаграмга өтөт\n4. Сиз упай аласыз!\n\n1 уникалдуу түзүлүш = 1 упай",
+        "az": "❓ <b>Kömək</b>\n\n1. QR kodunuzu müştərilərə göstərin\n2. Müştəri QR-ı skan edir\n3. Instagram səhifəsinə keçir\n4. Siz bal qazanırsınız!\n\n1 unikal cihaz = 1 bal",
     },
-
-    # ── Generic ──────────────────────────────────────────────────────────────
-    "generic.not_registered": {
-        "uz": "⚠️ Siz ro'yxatdan o'tmagansiz. /start bosing.",
-        "ru": "⚠️ Вы не зарегистрированы. Нажмите /start.",
-        "en": "⚠️ You are not registered. Press /start.",
-        "kg": "⚠️ Сиз катталган эмессиз. /start басыңыз.",
-        "az": "⚠️ Qeydiyyatdan keçməmisiniz. /start basın.",
+    "event.notification": {
+        "uz": "🏆 <b>Yangi event!</b>\n\n📌 {event_name}\n📝 {description}\n\n📅 {start_at} — {end_at}\n📋 {rules}\n\n🎁 Mukofotlar:\n{rewards}",
+        "ru": "🏆 <b>Новое событие!</b>\n\n📌 {event_name}\n📝 {description}\n\n📅 {start_at} — {end_at}\n📋 {rules}\n\n🎁 Призы:\n{rewards}",
+        "en": "🏆 <b>New event!</b>\n\n📌 {event_name}\n📝 {description}\n\n📅 {start_at} — {end_at}\n📋 {rules}\n\n🎁 Rewards:\n{rewards}",
+        "kg": "🏆 <b>Жаңы иш-чара!</b>\n\n📌 {event_name}\n📝 {description}\n\n📅 {start_at} — {end_at}\n📋 {rules}\n\n🎁 Сыйлыктар:\n{rewards}",
+        "az": "🏆 <b>Yeni tədbir!</b>\n\n📌 {event_name}\n📝 {description}\n\n📅 {start_at} — {end_at}\n📋 {rules}\n\n🎁 Mükafatlar:\n{rewards}",
     },
-    "generic.error": {
-        "uz": "❌ Xatolik yuz berdi. Iltimos qaytadan urinib ko'ring.",
-        "ru": "❌ Произошла ошибка. Попробуйте ещё раз.",
-        "en": "❌ An error occurred. Please try again.",
-        "kg": "❌ Ката кетти. Кайра аракет кылыңыз.",
-        "az": "❌ Xəta baş verdi. Yenidən cəhd edin.",
+    "event.pool": {
+        "uz": "💰 Mukofot puli: <b>{amount} {currency}</b>", "ru": "💰 Призовой фонд: <b>{amount} {currency}</b>",
+        "en": "💰 Reward pool: <b>{amount} {currency}</b>", "kg": "💰 Сыйлык пулу: <b>{amount} {currency}</b>",
+        "az": "💰 Mükafat fondu: <b>{amount} {currency}</b>",
     },
-    "generic.back": {
-        "uz": "◀️ Orqaga",
-        "ru": "◀️ Назад",
-        "en": "◀️ Back",
-        "kg": "◀️ Артка",
-        "az": "◀️ Geri",
+    "event.qr_sent": {
+        "uz": "📱 Event QR kodingiz yuborildi!", "ru": "📱 QR код события отправлен!",
+        "en": "📱 Event QR code sent!", "kg": "📱 Иш-чара QR коду жөнөтүлдү!", "az": "📱 Tədbir QR kodu göndərildi!",
     },
-    "generic.lang_changed": {
-        "uz": "✅ Til o'zgartirildi!",
-        "ru": "✅ Язык изменён!",
-        "en": "✅ Language changed!",
-        "kg": "✅ Тил өзгөртүлдү!",
-        "az": "✅ Dil dəyişdirildi!",
+    "admin.panel": {
+        "uz": "👑 Admin panel", "ru": "👑 Панель админа", "en": "👑 Admin panel",
+        "kg": "👑 Админ панели", "az": "👑 Admin paneli",
     },
 }
 
-FALLBACK_LANG = "uz"
 
-
-def t(key: str, lang: str = "uz") -> str:
-    """Get translation for key in given language."""
-    lang = lang.lower() if lang else FALLBACK_LANG
-    entry = TRANSLATIONS.get(key)
-    if entry is None:
-        return key  # Return key itself if missing
-    return entry.get(lang) or entry.get(FALLBACK_LANG) or key
+def t(key, lang="uz"):
+    entry = TRANSLATIONS.get(key, {})
+    return entry.get(lang, entry.get("uz", f"[{key}]"))

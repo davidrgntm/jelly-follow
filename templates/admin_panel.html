@@ -1,0 +1,295 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Jelly Follow — Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--bg:#0f0f12;--card:#1a1a22;--card2:#22222e;--border:#2a2a3a;--text:#e8e8ef;--muted:#8888a0;--accent:#a855f7;--accent2:#7c3aed;--green:#22c55e;--red:#ef4444;--amber:#f59e0b;--blue:#3b82f6;--teal:#14b8a6;--radius:14px;--font:'DM Sans',system-ui,sans-serif}
+body{font-family:var(--font);background:var(--bg);color:var(--text);min-height:100vh;overflow-x:hidden}
+a{color:var(--accent);text-decoration:none}
+.app{max-width:1400px;margin:0 auto;padding:20px}
+.header{display:flex;align-items:center;justify-content:space-between;padding:20px 0 30px;border-bottom:1px solid var(--border);margin-bottom:30px}
+.header h1{font-size:24px;font-weight:700;background:linear-gradient(135deg,var(--accent),#ec4899);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.header .badge{background:var(--accent2);color:#fff;padding:4px 14px;border-radius:20px;font-size:12px;font-weight:600}
+.tabs{display:flex;gap:6px;margin-bottom:24px;flex-wrap:wrap}
+.tab{padding:10px 20px;border-radius:10px;font-size:14px;font-weight:500;cursor:pointer;background:var(--card);color:var(--muted);border:1px solid var(--border);transition:all .2s}
+.tab:hover{border-color:var(--accent);color:var(--text)}
+.tab.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.grid{display:grid;gap:16px;margin-bottom:24px}
+.grid-4{grid-template-columns:repeat(auto-fit,minmax(200px,1fr))}
+.grid-3{grid-template-columns:repeat(auto-fit,minmax(280px,1fr))}
+.stat-card{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);padding:20px 24px}
+.stat-card .label{font-size:13px;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.5px}
+.stat-card .value{font-size:32px;font-weight:700;line-height:1.2}
+.stat-card .sub{font-size:12px;color:var(--muted);margin-top:4px}
+.stat-card .dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:6px}
+.section{margin-bottom:32px}
+.section-title{font-size:18px;font-weight:600;margin-bottom:16px;display:flex;align-items:center;gap:10px}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th{text-align:left;padding:12px 16px;font-weight:600;color:var(--muted);text-transform:uppercase;font-size:11px;letter-spacing:.5px;border-bottom:1px solid var(--border);background:var(--card)}
+td{padding:12px 16px;border-bottom:1px solid var(--border)}
+tr:hover td{background:var(--card2)}
+.table-wrap{background:var(--card);border:1px solid var(--border);border-radius:var(--radius);overflow:hidden;overflow-x:auto}
+.badge-s{display:inline-block;padding:3px 10px;border-radius:8px;font-size:11px;font-weight:600}
+.bg-green{background:rgba(34,197,94,.15);color:var(--green)}
+.bg-red{background:rgba(239,68,68,.15);color:var(--red)}
+.bg-amber{background:rgba(245,158,11,.15);color:var(--amber)}
+.bg-blue{background:rgba(59,130,246,.15);color:var(--blue)}
+.bg-purple{background:rgba(168,85,247,.15);color:var(--accent)}
+.medal{font-size:18px;margin-right:4px}
+.rank-num{color:var(--muted);font-weight:600;min-width:28px;display:inline-block}
+.filters{display:flex;gap:10px;margin-bottom:16px;flex-wrap:wrap}
+.filters select,.filters button{padding:8px 16px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-family:var(--font);font-size:13px;cursor:pointer}
+.filters select:focus,.filters button:focus{outline:none;border-color:var(--accent)}
+.filters button{background:var(--accent);color:#fff;border:none;font-weight:600}
+.filters button:hover{background:var(--accent2)}
+.panel{display:none}
+.panel.active{display:block}
+.loading{text-align:center;padding:60px;color:var(--muted)}
+.loading .spin{width:32px;height:32px;border:3px solid var(--border);border-top-color:var(--accent);border-radius:50%;animation:sp .7s linear infinite;margin:0 auto 12px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.country-flag{font-size:16px;margin-right:4px}
+.refresh-btn{padding:6px 14px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--muted);cursor:pointer;font-size:12px;transition:all .2s}
+.refresh-btn:hover{border-color:var(--accent);color:var(--accent)}
+@media(max-width:768px){.header h1{font-size:18px}.stat-card .value{font-size:24px}}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="header">
+    <div>
+      <h1>🍇 Jelly Follow</h1>
+      <span style="color:var(--muted);font-size:13px">Admin Dashboard</span>
+    </div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <button class="refresh-btn" onclick="loadAll()">↻ Yangilash</button>
+      <span class="badge">ADMIN</span>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="showPanel('dashboard')">📊 Dashboard</div>
+    <div class="tab" onclick="showPanel('employees')">👥 Xodimlar</div>
+    <div class="tab" onclick="showPanel('events')">🏆 Eventlar</div>
+    <div class="tab" onclick="showPanel('leaderboard')">🥇 Reyting</div>
+    <div class="tab" onclick="showPanel('scans')">📱 Skanlar</div>
+  </div>
+
+  <!-- Dashboard -->
+  <div class="panel active" id="p-dashboard">
+    <div class="grid grid-4" id="stats-grid">
+      <div class="loading"><div class="spin"></div>Yuklanmoqda...</div>
+    </div>
+    <div class="section">
+      <div class="section-title">🌍 Mamlakatlar bo'yicha</div>
+      <div class="grid grid-4" id="country-grid"></div>
+    </div>
+  </div>
+
+  <!-- Employees -->
+  <div class="panel" id="p-employees">
+    <div class="filters">
+      <select id="emp-country-filter" onchange="renderEmployees()">
+        <option value="">Barcha mamlakatlar</option>
+        <option value="UZ">🇺🇿 UZ</option><option value="RU">🇷🇺 RU</option>
+        <option value="KG">🇰🇬 KG</option><option value="AZ">🇦🇿 AZ</option>
+      </select>
+      <select id="emp-status-filter" onchange="renderEmployees()">
+        <option value="">Barcha statuslar</option>
+        <option value="active">Active</option><option value="inactive">Inactive</option>
+        <option value="blocked">Blocked</option>
+      </select>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>#</th><th>Kod</th><th>Ism</th><th>Mamlakat</th><th>Status</th><th>Ro'yxatdan</th></tr></thead>
+      <tbody id="emp-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Events -->
+  <div class="panel" id="p-events">
+    <div class="grid grid-3" id="events-grid"></div>
+  </div>
+
+  <!-- Leaderboard -->
+  <div class="panel" id="p-leaderboard">
+    <div class="filters">
+      <select id="lb-country" onchange="loadLeaderboard()">
+        <option value="">Barcha mamlakatlar</option>
+        <option value="UZ">🇺🇿 UZ</option><option value="RU">🇷🇺 RU</option>
+        <option value="KG">🇰🇬 KG</option><option value="AZ">🇦🇿 AZ</option>
+      </select>
+      <select id="lb-period" onchange="loadLeaderboard()">
+        <option value="all">Hammasi</option>
+        <option value="today">Bugun</option><option value="week">Hafta</option>
+        <option value="month">Oy</option>
+      </select>
+      <button onclick="loadLeaderboard()">Ko'rsatish</button>
+    </div>
+    <div class="table-wrap"><table>
+      <thead><tr><th>O'rin</th><th>Xodim</th><th>Mamlakat</th><th style="text-align:right">Ball</th></tr></thead>
+      <tbody id="lb-tbody"></tbody>
+    </table></div>
+  </div>
+
+  <!-- Scans -->
+  <div class="panel" id="p-scans">
+    <div class="table-wrap"><table>
+      <thead><tr><th>Vaqt</th><th>Xodim</th><th>Qurilma</th><th>IP</th><th>Natija</th></tr></thead>
+      <tbody id="scans-tbody"></tbody>
+    </table></div>
+  </div>
+</div>
+
+<script>
+const KEY="{{key}}";
+const H={"x-admin-key":KEY,"Content-Type":"application/json"};
+const FLAGS={UZ:"🇺🇿",RU:"🇷🇺",KG:"🇰🇬",AZ:"🇦🇿"};
+
+let DATA={stats:null,employees:[],events:[],scans:[]};
+
+function showPanel(id){
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('p-'+id).classList.add('active');
+  event.target.classList.add('active');
+}
+
+async function api(path){
+  const r=await fetch(path,{headers:H});
+  if(!r.ok)throw new Error(r.status);
+  return r.json();
+}
+
+function statusBadge(s){
+  const m={active:'bg-green',inactive:'bg-amber',blocked:'bg-red',draft:'bg-blue',paused:'bg-amber',finished:'bg-purple'};
+  return `<span class="badge-s ${m[s]||'bg-blue'}">${s}</span>`;
+}
+
+function pointBadge(d){
+  if(d==='first_unique_device')return '<span class="badge-s bg-green">+1 ball</span>';
+  if(d==='duplicate_device')return '<span class="badge-s bg-amber">takror</span>';
+  if(d==='suspicious')return '<span class="badge-s bg-red">shubhali</span>';
+  return `<span class="badge-s bg-blue">${d||'pending'}</span>`;
+}
+
+async function loadStats(){
+  try{
+    const d=await api('/api/web/stats');
+    DATA.stats=d;
+    const g=document.getElementById('stats-grid');
+    g.innerHTML=`
+      <div class="stat-card"><div class="label">Xodimlar</div><div class="value">${d.employees_active}</div><div class="sub">/ ${d.employees_total} jami</div></div>
+      <div class="stat-card"><div class="label">Jami ball</div><div class="value" style="color:var(--accent)">${d.points_total}</div><div class="sub">${d.unique_awards} unique scan</div></div>
+      <div class="stat-card"><div class="label">Skanlar</div><div class="value">${d.scans_total}</div><div class="sub"><span class="dot" style="background:var(--green)"></span>${d.unique_awards} unique  <span class="dot" style="background:var(--amber)"></span>${d.duplicate_scans} dup</div></div>
+      <div class="stat-card"><div class="label">Eventlar</div><div class="value">${d.events_active} <span style="font-size:16px;color:var(--muted)">faol</span></div><div class="sub">/ ${d.events_total} jami</div></div>
+    `;
+    const cg=document.getElementById('country-grid');
+    cg.innerHTML=Object.entries(d.country_stats||{}).map(([cc,s])=>`
+      <div class="stat-card">
+        <div class="label"><span class="country-flag">${FLAGS[cc]||''}</span>${cc}</div>
+        <div class="value">${s.active}</div>
+        <div class="sub">/ ${s.employees} jami xodim</div>
+      </div>
+    `).join('');
+  }catch(e){document.getElementById('stats-grid').innerHTML='<div style="color:var(--red)">Xatolik: '+e.message+'</div>'}
+}
+
+async function loadEmployees(){
+  try{
+    const d=await api('/api/web/employees');
+    DATA.employees=d.employees||[];
+    renderEmployees();
+  }catch(e){}
+}
+
+function renderEmployees(){
+  const cc=document.getElementById('emp-country-filter').value;
+  const st=document.getElementById('emp-status-filter').value;
+  let list=DATA.employees;
+  if(cc)list=list.filter(e=>e.country_code===cc);
+  if(st)list=list.filter(e=>e.status===st);
+  document.getElementById('emp-tbody').innerHTML=list.map((e,i)=>`
+    <tr>
+      <td style="color:var(--muted)">${i+1}</td>
+      <td><code>${e.employee_code}</code></td>
+      <td><b>${e.full_name}</b></td>
+      <td><span class="country-flag">${FLAGS[e.country_code]||''}</span>${e.country_code}</td>
+      <td>${statusBadge(e.status)}</td>
+      <td style="color:var(--muted);font-size:12px">${(e.registered_at||'').slice(0,10)}</td>
+    </tr>
+  `).join('');
+}
+
+async function loadEvents(){
+  try{
+    const d=await api('/api/web/events');
+    DATA.events=d.events||[];
+    const g=document.getElementById('events-grid');
+    g.innerHTML=DATA.events.map(ev=>{
+      const countries=(ev.countries||[]).map(c=>`<span class="country-flag">${FLAGS[c]||''}</span>${c}`).join(' ');
+      const rewards=(ev.rewards||[]).map(r=>`<div style="font-size:12px;color:var(--muted)">${r.place_number}-o'rin: ${r.reward_title} ${r.reward_amount?r.reward_amount+' '+r.currency_code:''}</div>`).join('');
+      const pool=ev.reward_pool_amount?`<div style="margin-top:8px;padding:8px 12px;background:rgba(168,85,247,.1);border-radius:8px;font-size:13px"><b>💰 ${Number(ev.reward_pool_amount).toLocaleString()} ${ev.reward_pool_currency||''}</b></div>`:'';
+      return `
+        <div class="stat-card">
+          <div style="display:flex;justify-content:space-between;align-items:start;margin-bottom:8px">
+            <div style="font-weight:600;font-size:15px">${ev.event_name}</div>
+            ${statusBadge(ev.status)}
+          </div>
+          <div style="font-size:12px;color:var(--muted);margin-bottom:6px">${ev.event_id}</div>
+          <div style="font-size:13px;margin-bottom:4px">📅 ${(ev.start_at||'').slice(0,16)} — ${(ev.end_at||'').slice(0,16)}</div>
+          <div style="font-size:13px;margin-bottom:6px">🌍 ${countries}</div>
+          ${rewards}${pool}
+        </div>
+      `;
+    }).join('')||'<div style="color:var(--muted)">Eventlar yo\'q</div>';
+  }catch(e){}
+}
+
+async function loadLeaderboard(){
+  const cc=document.getElementById('lb-country').value;
+  const per=document.getElementById('lb-period').value;
+  try{
+    const d=await api(`/api/web/leaderboard?country=${cc}&period=${per}`);
+    const lb=d.leaderboard||[];
+    const medals={1:'🥇',2:'🥈',3:'🥉'};
+    document.getElementById('lb-tbody').innerHTML=lb.map(e=>`
+      <tr>
+        <td>${medals[e.rank]?`<span class="medal">${medals[e.rank]}</span>`:`<span class="rank-num">${e.rank}</span>`}</td>
+        <td><b>${e.full_name}</b> <code style="font-size:11px;color:var(--muted)">${e.employee_code}</code></td>
+        <td><span class="country-flag">${FLAGS[e.country_code]||''}</span>${e.country_code}</td>
+        <td style="text-align:right;font-weight:700;font-size:16px;color:var(--accent)">${e.points}</td>
+      </tr>
+    `).join('')||'<tr><td colspan="4" style="color:var(--muted);text-align:center;padding:40px">Reyting bo\'sh</td></tr>';
+  }catch(e){}
+}
+
+async function loadScans(){
+  try{
+    const d=await api('/api/web/scans?limit=100');
+    const scans=d.scans||[];
+    document.getElementById('scans-tbody').innerHTML=scans.map(s=>`
+      <tr>
+        <td style="font-size:12px;white-space:nowrap">${(s.scanned_at||'').slice(0,19)}</td>
+        <td><code>${s.employee_code}</code></td>
+        <td style="font-size:12px;color:var(--muted)">${s.os_name||'?'} / ${s.browser_name||'?'}</td>
+        <td style="font-size:12px;color:var(--muted)">${s.ip_address||''}</td>
+        <td>${pointBadge(s.point_decision)}</td>
+      </tr>
+    `).join('');
+  }catch(e){}
+}
+
+async function loadAll(){
+  await Promise.all([loadStats(),loadEmployees(),loadEvents(),loadLeaderboard(),loadScans()]);
+}
+
+loadAll();
+setInterval(loadAll,30000);
+</script>
+</body>
+</html>

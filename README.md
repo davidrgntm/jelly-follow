@@ -11,9 +11,11 @@ Instagram follower tracking system for Jelly employees.
 - Xodim Telegram bot orqali ro'yxatdan o'tadi
 - Unikal QR kod va short-link oladi
 - Mijoz QR ni skanerlaydi → tizim loglar yig'adi → Instagram'ga yo'naltiradi
-- Ball tizimi: 1 unique device = 1 ball
+- Ball tizimi: 1 unique device = 1 ball (butun tizim bo'yicha)
 - 4 ta mamlakat: UZ, RU, KG, AZ
 - 5 tilda bot: uz, ru, en, kg, az
+- Event tizimi: mukofot puli, leaderboard, notification
+- Web admin panel: real-time dashboard
 
 ---
 
@@ -21,12 +23,13 @@ Instagram follower tracking system for Jelly employees.
 
 | Qatlam | Texnologiya |
 |--------|-------------|
-| Backend | Python 3.11 + FastAPI |
+| Backend | Python 3.11+ FastAPI |
 | Bot | aiogram 3.x |
 | Storage | Google Sheets |
 | QR | qrcode + Pillow |
 | Server | Gunicorn + Uvicorn |
 | Proxy | Nginx |
+| Cache | In-memory TTL Cache |
 
 ---
 
@@ -40,14 +43,14 @@ jelly-follow/
 │   ├── bootstrap/
 │   │   └── sheets_init.py   ← Google Sheets auto-setup
 │   ├── integrations/
-│   │   ├── google_sheets.py ← Sheets client
+│   │   ├── google_sheets.py ← Sheets client + retry
 │   │   └── qr_generator.py  ← QR generation
 │   ├── services/
 │   │   ├── employees_service.py
 │   │   ├── admins_service.py
 │   │   ├── events_service.py
-│   │   ├── scans_service.py     ← Tracking core
-│   │   ├── devices_service.py   ← Uniqueness logic
+│   │   ├── scans_service.py     ← Tracking core + pre-log
+│   │   ├── devices_service.py   ← Uniqueness + anti-abuse
 │   │   ├── points_service.py
 │   │   ├── leaderboard_service.py
 │   │   ├── qr_service.py
@@ -59,7 +62,8 @@ jelly-follow/
 │   │   ├── admins.py
 │   │   ├── events.py
 │   │   ├── qr.py
-│   │   └── internal.py      ← Bootstrap endpoints
+│   │   ├── internal.py
+│   │   └── admin_web.py     ← Web admin panel
 │   ├── bot/
 │   │   ├── bot.py
 │   │   ├── handlers/
@@ -67,266 +71,152 @@ jelly-follow/
 │   │   │   ├── menu.py
 │   │   │   └── admin.py
 │   │   ├── keyboards/
-│   │   │   └── main_keyboards.py
 │   │   ├── middlewares/
-│   │   │   └── lang_middleware.py
 │   │   └── texts/
-│   │       └── translations.py  ← 5-language system
+│   │       └── translations.py
 │   └── utils/
-│       ├── ids.py              ← ID generator
-│       ├── fingerprint.py      ← Device fingerprint
+│       ├── ids.py
 │       ├── datetime_utils.py
-│       └── validators.py
+│       ├── fingerprint.py
+│       ├── validators.py
+│       ├── cache.py          ← TTL cache
+│       └── anti_abuse.py     ← Rate limiting
 ├── templates/
-│   └── redirect.html       ← Tracking redirect page
-├── static/qr/              ← Generated QR images
+│   ├── redirect.html         ← Tracking page
+│   └── admin_panel.html      ← Web dashboard
+├── static/qr/
 ├── deploy/
-│   ├── nginx.conf
+│   ├── deploy.sh
 │   ├── jelly-follow.service
-│   └── deploy.sh
-├── .env.example
+│   └── nginx.conf
 ├── requirements.txt
-└── README.md
+├── Procfile
+└── nixpacks.toml
 ```
 
 ---
 
 ## O'rnatish
 
-### 1. Talablar
+### 1. Google Cloud sozlash
 
-- Python 3.11+
-- Ubuntu 22.04 (yoki boshqa Linux)
-- Google Cloud Service Account
-- Telegram Bot Token
+1. [Google Cloud Console](https://console.cloud.google.com/) ochiladi
+2. Yangi project yaratiladi
+3. Google Sheets API yoqiladi
+4. Service Account yaratiladi
+5. JSON key yuklab olinadi
 
-### 2. Reponi klonlash
+### 2. Telegram Bot
+
+1. [@BotFather](https://t.me/BotFather) orqali bot yaratiladi
+2. Bot token olinadi
+
+### 3. Loyihani o'rnatish
 
 ```bash
-git clone <repo_url> /home/jelly/jelly-follow
-cd /home/jelly/jelly-follow
-```
-
-### 3. Virtual muhit
-
-```bash
+git clone <repo-url> jelly-follow
+cd jelly-follow
 python3 -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
-```
 
-### 4. `.env` faylini sozlash
-
-```bash
+# .env fayli yaratish
 cp .env.example .env
-nano .env
+# .env ni to'ldirish (pastga qarang)
 ```
 
-Majburiy o'zgaruvchilar:
-
-```env
-BOT_TOKEN=your_bot_token
-SUPER_ADMIN_TELEGRAM_ID=your_telegram_id
-GOOGLE_SERVICE_ACCOUNT_JSON_PATH=./credentials.json
-SPREADSHEET_NAME=Jelly Follow - PROD
-TRACKING_DOMAIN=https://go.jelly.uz
-BASE_URL=https://api.follow.jelly.uz
-INTERNAL_SECRET=very_strong_secret_here
-INSTAGRAM_UZ_USERNAME=jelly.uz
-INSTAGRAM_RU_USERNAME=jelly.russia
-INSTAGRAM_KG_USERNAME=jelly.kg
-INSTAGRAM_AZ_USERNAME=jelly.az
-```
-
-### 5. Google Service Account
-
-1. [Google Cloud Console](https://console.cloud.google.com) ga kiring
-2. Yangi project yarating: `jelly-follow`
-3. **APIs & Services → Enable APIs**: Google Sheets API, Google Drive API
-4. **IAM → Service Accounts**: yangi service account yarating
-5. JSON key yuklab oling → `credentials.json` deb saqlang
-6. Bu faylni server ga `/home/jelly/jelly-follow/credentials.json` ga qo'ying
-
-### 6. Ishga tushirish (development)
+### 4. Birinchi ishga tushirish
 
 ```bash
-source venv/bin/activate
+# Bootstrap — Google Sheets yaratadi
+export BOOTSTRAP_ON_START=true
+export SEED_SUPER_ADMIN_ON_START=true
+
+# Development mode (polling)
+export APP_ENV=development
 uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
 ```
 
-### 7. Production deploy
+### 5. Production deploy
 
 ```bash
-# Nginx o'rnatish
-sudo apt install nginx certbot python3-certbot-nginx
-
-# SSL sertifikat
-sudo certbot --nginx -d go.jelly.uz -d api.follow.jelly.uz
-
-# Nginx config
-sudo cp deploy/nginx.conf /etc/nginx/sites-available/jelly-follow
-sudo ln -s /etc/nginx/sites-available/jelly-follow /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-
-# Systemd service
 bash deploy/deploy.sh
 ```
 
 ---
 
-## Google Sheets
+## Muhim environment o'zgaruvchilari
 
-Backend **birinchi ishga tushganda** avtomatik quyidagilarni qiladi:
-
-- `Jelly Follow - PROD` spreadsheet yaratadi (yoki topadi)
-- 14 ta sheet yaratadi
-- Barcha headerlarni yozadi
-- Dictionary ma'lumotlarni seed qiladi
-- 4 ta mamlakatni seed qiladi
-- Super admin yaratadi
-
-**Qo'lda hech narsa sozlash shart emas.**
-
-Spreadsheetni ko'rish uchun: service account email ni spreadsheet ga editor sifatida qo'shing.
-
----
-
-## API Endpointlar
-
-### Public
-
-| Method | URL | Ta'rif |
-|--------|-----|--------|
-| `GET` | `/health` | Health check |
-| `GET` | `/r/{employee_code}` | QR redirect |
-| `POST` | `/api/tracking/client-log` | JS device log |
-
-### Employees
-
-| Method | URL | Ta'rif |
-|--------|-----|--------|
-| `POST` | `/api/employees/register` | Ro'yxatdan o'tish |
-| `GET` | `/api/employees/{id}` | Profil |
-| `GET` | `/api/employees/{id}/stats` | Statistika |
-| `GET` | `/api/employees/{id}/leaderboard` | Reyting |
-
-### Admin (Header: `X-Internal-Secret`)
-
-| Method | URL | Ta'rif |
-|--------|-----|--------|
-| `POST` | `/api/admins/create` | Admin yaratish |
-| `POST` | `/api/admins/employee-status` | Status o'zgartirish |
-| `POST` | `/api/admins/manual-points` | Ball berish |
-| `POST` | `/api/events/create` | Event yaratish |
-| `POST` | `/api/events/{id}/activate` | Event faollashtirish |
-| `POST` | `/api/events/{id}/pause` | Pause |
-| `POST` | `/api/events/{id}/finish` | Yakunlash |
-| `POST` | `/api/qr/generate/employee/{id}` | QR yaratish |
-
-### Internal
-
-| Method | URL | Ta'rif |
-|--------|-----|--------|
-| `POST` | `/internal/bootstrap-sheets` | Sheets bootstrap |
-| `POST` | `/internal/sync-schema` | Schema sync |
+| O'zgaruvchi | Tavsif | Misol |
+|-------------|--------|-------|
+| `BOT_TOKEN` | Telegram bot token | `123456:ABC...` |
+| `BASE_URL` | Backend URL | `https://api.follow.jelly.uz` |
+| `TRACKING_DOMAIN` | QR redirect domain | `https://go.jelly.uz` |
+| `GOOGLE_SERVICE_ACCOUNT_JSON` | SA JSON (string) | `{"type":"service_account",...}` |
+| `SPREADSHEET_NAME` | Spreadsheet nomi | `Jelly Follow - PROD` |
+| `SUPER_ADMIN_TELEGRAM_ID` | Admin Telegram ID | `123456789` |
+| `INTERNAL_SECRET` | API himoya kaliti | `random_secret_here` |
+| `ADMIN_WEB_SECRET` | Web panel kaliti | `another_secret` |
+| `APP_ENV` | production / development | `production` |
+| `BOOTSTRAP_ON_START` | Sheets auto-setup | `true` |
+| `SEED_SUPER_ADMIN_ON_START` | Admin auto-seed | `true` |
 
 ---
 
-## Telegram Bot
+## Web Admin Panel
 
-### Xodim buyruqlari
-
-| Buyruq | Ta'rif |
-|--------|--------|
-| `/start` | Ro'yxatdan o'tish / Asosiy menyu |
-
-### Admin buyruqlari
-
-| Buyruq | Ta'rif |
-|--------|--------|
-| `/admin` | Admin panel |
-| `/employees` | Xodimlar ro'yxati |
-| `/events` | Eventlar |
-| `/leaderboard [CC]` | Reyting |
-| `/setstatus <code> <status>` | Status o'zgartirish |
-| `/createevent` | Event yaratish (dialog) |
-| `/activateevent <id>` | Event faollashtirish |
-| `/pauseevent <id>` | Pause |
-| `/finishevent <id>` | Yakunlash |
-| `/manualpoints <code> <±N> [sabab]` | Ball berish |
-| `/addadmin <tg_id> <ism> <rol>` | Admin qo'shish (super_admin) |
-
----
-
-## ID Formatlari
-
-| Tur | Format | Misol |
-|-----|--------|-------|
-| Admin | `ADM-NNNN` | `ADM-0001` |
-| Employee | `EMP-NNNN` | `EMP-0001` |
-| Employee code | `CC-NNNN` | `UZ-0001` |
-| Event | `EVT-YYYYMMDD-NNN` | `EVT-20260401-001` |
-| QR | `QR-NNNNNN` | `QR-000001` |
-| Scan | `SCN-YYYYMMDD-NNNNNN` | `SCN-20260401-000001` |
-| Point TX | `PTX-YYYYMMDD-NNNNNN` | `PTX-20260401-000001` |
-| Log | `LOG-YYYYMMDD-NNNNNN` | `LOG-20260401-000001` |
-
----
-
-## Ball logikasi
-
+Brauzerda ochish:
 ```
-1 unique device = 1 ball (tizim bo'yicha global)
-
-Device key = SHA256(fingerprint_id | os | browser | platform | screen | timezone | user_agent)
-
-Agar device_key device_registry da yo'q → +1 ball, yozuv yaratiladi
-Agar mavjud → 0 ball, total_scans oshiriladi, last_seen_at yangilanadi
+https://your-domain.com/admin?key=YOUR_ADMIN_WEB_SECRET
 ```
 
----
-
-## Xavfsizlik
-
-- `.env` faylini hech qachon gitga qo'shmang
-- `credentials.json` ni gitga qo'shmang
-- `INTERNAL_SECRET` ni kuchli qiling (min 32 belgi)
-- Admin endpointlar `X-Internal-Secret` header talab qiladi
-- `/internal/*` endpointlar tashqi trafikdan Nginx orqali yopish mumkin
+Dashboard, xodimlar, eventlar, reyting va skanlar — barchasini web orqali ko'rish.
 
 ---
 
-## Logs
+## Domen sozlash (Nginx)
+
+`deploy/nginx.conf` faylini ko'ring. 3 ta domen tavsiya etiladi:
+
+- `follow.jelly.uz` — web admin panel
+- `go.jelly.uz` — tracking redirect
+- `api.follow.jelly.uz` — backend API
+
+Nginx'ni sozlash:
 
 ```bash
-# Systemd logs
-journalctl -u jelly-follow -f
+sudo cp deploy/nginx.conf /etc/nginx/sites-available/jelly-follow
+sudo ln -s /etc/nginx/sites-available/jelly-follow /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+```
 
-# Application logs
-tail -f /var/log/jelly-follow/error.log
-
-# Sheets bootstrap va scan loglar
-# Google Sheets → system_logs sheet da ko'rish mumkin
+SSL uchun:
+```bash
+sudo certbot --nginx -d follow.jelly.uz -d go.jelly.uz -d api.follow.jelly.uz
 ```
 
 ---
 
-## Muammolar va yechimlar
+## API endpointlar
 
-**Bootstrap ishlamayapti?**
-```bash
-# Credentials to'g'riligini tekshiring
-python3 -c "from app.config import settings; print(settings.get_google_credentials())"
-```
-
-**Bot javob bermayapti?**
-```bash
-# Token to'g'riligini tekshiring
-curl https://api.telegram.org/bot<TOKEN>/getMe
-```
-
-**QR rasm chiqmayapti?**
-```bash
-# static/qr papkasi mavjudligini tekshiring
-ls -la static/qr/
-```
+| Method | Path | Tavsif |
+|--------|------|--------|
+| GET | `/health` | Health check + Sheets status |
+| GET | `/r/{employee_code}` | Tracking redirect |
+| POST | `/api/tracking/client-log` | Client-side log |
+| POST | `/api/employees/register` | Employee ro'yxatdan o'tish |
+| GET | `/api/employees/{id}` | Employee profili |
+| GET | `/api/employees/{id}/stats` | Employee statistikasi |
+| GET | `/api/employees/{id}/leaderboard` | Employee reytingi |
+| POST | `/api/admins/create` | Admin yaratish |
+| POST | `/api/admins/employee-status` | Status o'zgartirish |
+| POST | `/api/admins/manual-points` | Manual ball |
+| GET | `/api/admins/stats` | Tizim statistikasi |
+| POST | `/api/events/create` | Event yaratish |
+| POST | `/api/events/{id}/activate` | Event boshlash |
+| POST | `/api/events/{id}/pause` | Event to'xtatish |
+| POST | `/api/events/{id}/finish` | Event tugatish |
+| GET | `/api/events/{id}/leaderboard` | Event reytingi |
+| POST | `/api/qr/generate/employee/{id}` | QR yaratish |
+| GET | `/admin?key=...` | Web admin panel |

@@ -1,26 +1,10 @@
-"""
-Device fingerprinting and device_key generation.
-Used to enforce 1 unique device = 1 ball rule.
-"""
+"""Device fingerprinting and device_key generation."""
 import hashlib
 import re
-from typing import Optional
 
-
-def compute_device_key(
-    fingerprint_id: Optional[str],
-    os_name: Optional[str],
-    browser_name: Optional[str],
-    platform: Optional[str],
-    screen_width: Optional[int],
-    screen_height: Optional[int],
-    timezone: Optional[str],
-    user_agent: Optional[str],
-) -> str:
-    """
-    Creates a stable hash from device signals.
-    Deterministic: same device = same key.
-    """
+def compute_device_key(fingerprint_id=None, os_name=None, browser_name=None,
+                       platform=None, screen_width=None, screen_height=None,
+                       timezone=None, user_agent=None):
     parts = [
         (fingerprint_id or "").strip().lower(),
         (os_name or "").strip().lower(),
@@ -34,17 +18,12 @@ def compute_device_key(
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
-
-def _normalize_ua(ua: str) -> str:
-    """Strip version numbers for more stable matching."""
-    # Remove version numbers like /1.2.3 or (Version 10)
+def _normalize_ua(ua):
     ua = re.sub(r"/[\d.]+", "", ua)
     ua = re.sub(r"\(.*?\)", "", ua)
     return ua.strip().lower()[:200]
 
-
-def is_suspicious_ua(user_agent: str) -> bool:
-    """Detect likely bot/scraper user agents."""
+def is_suspicious_ua(user_agent):
     if not user_agent:
         return True
     ua_lower = user_agent.lower()

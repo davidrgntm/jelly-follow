@@ -1,6 +1,5 @@
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
-
 from app.services.admins_service import create_admin, get_system_stats
 from app.services.employees_service import update_employee_status, get_employee_by_id
 from app.services.points_service import manual_adjust
@@ -8,11 +7,9 @@ from app.config import settings
 
 router = APIRouter(prefix="/api/admins")
 
-
-def _check_internal(secret: str):
+def _check_internal(secret):
     if secret != settings.INTERNAL_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
-
 
 class CreateAdminPayload(BaseModel):
     telegram_user_id: str
@@ -21,12 +18,10 @@ class CreateAdminPayload(BaseModel):
     role_code: str
     created_by: str
 
-
 class EmployeeStatusPayload(BaseModel):
     employee_id: str
     status: str
     updated_by: str = "admin"
-
 
 class ManualPointsPayload(BaseModel):
     employee_id: str
@@ -36,24 +31,17 @@ class ManualPointsPayload(BaseModel):
     event_id: str = ""
     country_code: str = ""
 
-
 @router.get("/stats")
 async def api_admin_stats(x_internal_secret: str = Header("")):
     _check_internal(x_internal_secret)
     return get_system_stats()
 
-
 @router.post("/create")
 async def api_create_admin(payload: CreateAdminPayload, x_internal_secret: str = Header("")):
     _check_internal(x_internal_secret)
     return create_admin(
-        telegram_user_id=payload.telegram_user_id,
-        full_name=payload.full_name,
-        phone=payload.phone,
-        role_code=payload.role_code,
-        created_by=payload.created_by,
-    )
-
+        telegram_user_id=payload.telegram_user_id, full_name=payload.full_name,
+        phone=payload.phone, role_code=payload.role_code, created_by=payload.created_by)
 
 @router.post("/employee-status")
 async def api_employee_status(payload: EmployeeStatusPayload, x_internal_secret: str = Header("")):
@@ -64,7 +52,6 @@ async def api_employee_status(payload: EmployeeStatusPayload, x_internal_secret:
     update_employee_status(payload.employee_id, payload.status, payload.updated_by)
     return {"ok": True}
 
-
 @router.post("/manual-points")
 async def api_manual_points(payload: ManualPointsPayload, x_internal_secret: str = Header("")):
     _check_internal(x_internal_secret)
@@ -72,12 +59,8 @@ async def api_manual_points(payload: ManualPointsPayload, x_internal_secret: str
     if not emp:
         raise HTTPException(status_code=404, detail="Employee not found")
     tx_id = manual_adjust(
-        employee_id=payload.employee_id,
-        employee_code=emp.get("employee_code", ""),
-        points_delta=payload.points_delta,
-        reason_code=payload.reason_code,
-        admin_id=payload.admin_id,
-        event_id=payload.event_id,
-        country_code=payload.country_code or emp.get("country_code", ""),
-    )
+        employee_id=payload.employee_id, employee_code=emp.get("employee_code", ""),
+        points_delta=payload.points_delta, reason_code=payload.reason_code,
+        admin_id=payload.admin_id, event_id=payload.event_id,
+        country_code=payload.country_code or emp.get("country_code", ""))
     return {"ok": True, "point_tx_id": tx_id}

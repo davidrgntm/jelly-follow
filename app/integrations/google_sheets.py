@@ -1,9 +1,11 @@
 """
 Google Sheets integration layer.
 All sheet operations go through this module.
+Includes retry logic and cache-aware helpers.
 """
 import asyncio
 import logging
+import time
 from typing import Any, Optional
 from functools import wraps
 
@@ -18,7 +20,6 @@ SCOPES = [
     "https://www.googleapis.com/auth/drive",
 ]
 
-# Sheet names
 SHEET_META = "meta"
 SHEET_DICT = "dictionaries"
 SHEET_COUNTRIES = "countries"
@@ -63,7 +64,8 @@ SHEET_HEADERS = {
     SHEET_EVENTS: [
         "event_id", "event_code", "event_name", "description",
         "status", "start_at", "end_at", "rules_text",
-        "created_by_admin_id", "created_at", "started_at", "finished_at"
+        "created_by_admin_id", "created_at", "started_at", "finished_at",
+        "reward_pool_amount", "reward_pool_currency"
     ],
     SHEET_EVENT_COUNTRIES: ["id", "event_id", "country_code", "created_at"],
     SHEET_EVENT_REWARDS: [
@@ -108,16 +110,44 @@ SHEET_HEADERS = {
 }
 
 
+def _retry(max_attempts=3, backoff=1.0):
+    def decorator(func):
+        @wraps(func)
+        def wrapper(*args, **kwargs):
+            last_err = None
+            for attempt in range(1, max_attempts + 1):
+                try:
+                    return func(*args, **kwargs)
+                except gspread.exceptions.APIError as e:
+                    last_err = e
+                    code = e.response.status_code if hasattr(e, "response") else 0
+                    if code in (429, 500, 503) and attempt < max_attempts:
+                        wait = backoff * (2 ** (attempt - 1))
+                        logger.warning("Sheets API %s attempt %d/%d, retry in %.1fs", code, attempt, max_attempts, wait)
+                        time.sleep(wait)
+                    else:
+                        raise
+                except Exception as e:
+                    last_err = e
+                    if attempt < max_attempts:
+                        time.sleep(backoff)
+                    else:
+                        raise
+            raise last_err
+        return wrapper
+    return decorator
+
+
 class SheetsClient:
-    _instance: Optional["SheetsClient"] = None
-    _spreadsheet: Optional[gspread.Spreadsheet] = None
-    _gc: Optional[gspread.Client] = None
+    _instance = None
+    _spreadsheet = None
+    _gc = None
 
     def __init__(self):
-        self._sheet_cache: dict[str, gspread.Worksheet] = {}
+        self._sheet_cache = {}
 
     @classmethod
-    def get_instance(cls) -> "SheetsClient":
+    def get_instance(cls):
         if cls._instance is None:
             cls._instance = cls()
         return cls._instance
@@ -129,69 +159,77 @@ class SheetsClient:
             self._gc = gspread.authorize(creds)
             logger.info("Google Sheets connected")
 
-    def _get_spreadsheet(self) -> gspread.Spreadsheet:
+    def _get_spreadsheet(self):
         self._connect()
         if self._spreadsheet is None:
-            import os
-            spreadsheet_id = os.getenv("SPREADSHEET_ID")
-            if spreadsheet_id:
-                self._spreadsheet = self._gc.open_by_key(spreadsheet_id)
-                logger.info(f"Opened spreadsheet by ID: {spreadsheet_id}")
+            sid = settings.SPREADSHEET_ID
+            if sid:
+                self._spreadsheet = self._gc.open_by_key(sid)
+                logger.info("Opened spreadsheet by ID: %s", sid)
             else:
                 try:
                     self._spreadsheet = self._gc.open(settings.SPREADSHEET_NAME)
-                    logger.info(f"Opened spreadsheet: {settings.SPREADSHEET_NAME}")
+                    logger.info("Opened spreadsheet: %s", settings.SPREADSHEET_NAME)
                 except gspread.SpreadsheetNotFound:
                     self._spreadsheet = self._gc.create(settings.SPREADSHEET_NAME)
-                    logger.info(f"Created spreadsheet: {settings.SPREADSHEET_NAME}")
+                    logger.info("Created spreadsheet: %s", settings.SPREADSHEET_NAME)
+                    self._share_spreadsheet()
         return self._spreadsheet
 
-    def get_sheet(self, name: str) -> gspread.Worksheet:
+    def _share_spreadsheet(self):
+        for email in settings.get_share_emails():
+            try:
+                self._spreadsheet.share(email, perm_type="user", role="writer")
+                logger.info("Shared spreadsheet with: %s", email)
+            except Exception as e:
+                logger.warning("Failed to share with %s: %s", email, e)
+
+    def get_sheet(self, name):
         if name not in self._sheet_cache:
             ss = self._get_spreadsheet()
             try:
                 ws = ss.worksheet(name)
             except gspread.WorksheetNotFound:
                 ws = ss.add_worksheet(title=name, rows=1000, cols=50)
-                logger.info(f"Created worksheet: {name}")
+                logger.info("Created worksheet: %s", name)
             self._sheet_cache[name] = ws
         return self._sheet_cache[name]
 
-    def invalidate_cache(self, name: str = None):
+    def invalidate_cache(self, name=None):
         if name:
             self._sheet_cache.pop(name, None)
         else:
             self._sheet_cache.clear()
 
-    # ── Generic CRUD ──────────────────────────────────────────────────────────
-
-    def get_all_records(self, sheet_name: str) -> list[dict]:
+    @_retry(max_attempts=3, backoff=1.0)
+    def get_all_records(self, sheet_name):
         ws = self.get_sheet(sheet_name)
         try:
             return ws.get_all_records()
         except Exception as e:
-            logger.error(f"get_all_records({sheet_name}): {e}")
+            logger.error("get_all_records(%s): %s", sheet_name, e)
             return []
 
-    def append_row(self, sheet_name: str, row: list) -> None:
+    @_retry(max_attempts=3, backoff=1.0)
+    def append_row(self, sheet_name, row):
         ws = self.get_sheet(sheet_name)
         ws.append_row(row, value_input_option="USER_ENTERED")
 
-    def find_row_index(self, sheet_name: str, col_name: str, value: str) -> Optional[int]:
-        """Returns 1-based row index (including header), or None."""
+    @_retry(max_attempts=3, backoff=1.0)
+    def find_row_index(self, sheet_name, col_name, value):
         ws = self.get_sheet(sheet_name)
         headers = ws.row_values(1)
         if col_name not in headers:
             return None
         col_idx = headers.index(col_name) + 1
         try:
-            cell = ws.find(value, in_column=col_idx)
+            cell = ws.find(str(value), in_column=col_idx)
             return cell.row if cell else None
         except Exception:
             return None
 
-    def update_row(self, sheet_name: str, row_idx: int, data: dict) -> None:
-        """Update specific cells in a row by column name."""
+    @_retry(max_attempts=3, backoff=1.0)
+    def update_row(self, sheet_name, row_idx, data):
         ws = self.get_sheet(sheet_name)
         headers = ws.row_values(1)
         for col_name, val in data.items():
@@ -199,26 +237,44 @@ class SheetsClient:
                 col_idx = headers.index(col_name) + 1
                 ws.update_cell(row_idx, col_idx, val)
 
-    def find_record(self, sheet_name: str, col_name: str, value: str) -> Optional[dict]:
+    def find_record(self, sheet_name, col_name, value):
         records = self.get_all_records(sheet_name)
         for r in records:
             if str(r.get(col_name, "")) == str(value):
                 return r
         return None
 
-    def find_records(self, sheet_name: str, col_name: str, value: str) -> list[dict]:
+    def find_records(self, sheet_name, col_name, value):
         records = self.get_all_records(sheet_name)
         return [r for r in records if str(r.get(col_name, "")) == str(value)]
 
-    def count_records(self, sheet_name: str) -> int:
-        records = self.get_all_records(sheet_name)
-        return len(records)
+    def count_records(self, sheet_name):
+        return len(self.get_all_records(sheet_name))
 
-    def get_next_seq(self, sheet_name: str) -> int:
-        """Return next sequence number (count + 1)."""
+    def get_next_seq(self, sheet_name):
         return self.count_records(sheet_name) + 1
 
+    def set_filter(self, sheet_name):
+        try:
+            ws = self.get_sheet(sheet_name)
+            ws.set_basic_filter()
+            logger.info("Filter set: %s", sheet_name)
+        except Exception as e:
+            logger.debug("Filter skip for %s: %s", sheet_name, e)
 
-# Singleton accessor
-def get_sheets() -> SheetsClient:
+
+async def async_get_all_records(sheet_name):
+    return await asyncio.to_thread(get_sheets().get_all_records, sheet_name)
+
+async def async_append_row(sheet_name, row):
+    await asyncio.to_thread(get_sheets().append_row, sheet_name, row)
+
+async def async_find_record(sheet_name, col_name, value):
+    return await asyncio.to_thread(get_sheets().find_record, sheet_name, col_name, value)
+
+async def async_update_row(sheet_name, row_idx, data):
+    await asyncio.to_thread(get_sheets().update_row, sheet_name, row_idx, data)
+
+
+def get_sheets():
     return SheetsClient.get_instance()

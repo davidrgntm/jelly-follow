@@ -1,30 +1,24 @@
-"""
-Tracking redirect router.
-GET /r/{employee_code}         → redirect page + log
-POST /api/tracking/client-log → receive JS-side device data
-"""
+"""Tracking redirect router with server-side pre-log."""
 import logging
 from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
-
 from app.services.employees_service import get_employee_by_code
 from app.services.events_service import resolve_event_identifier
+from app.services.scans_service import create_server_pre_log
 from app.integrations.google_sheets import get_sheets, SHEET_COUNTRIES, SHEET_QR_CODES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 templates = Jinja2Templates(directory="templates")
 
-
-def _get_ip(request: Request) -> tuple[str, str]:
+def _get_ip(request):
     forwarded = request.headers.get("X-Forwarded-For", "")
     real_ip = request.headers.get("X-Real-IP", "")
     client_ip = request.client.host if request.client else ""
     return client_ip, forwarded or real_ip
-
 
 @router.get("/r/{employee_code}", response_class=HTMLResponse)
 async def tracking_redirect(employee_code: str, request: Request, event: Optional[str] = None):
@@ -36,11 +30,10 @@ async def tracking_redirect(employee_code: str, request: Request, event: Optiona
     sheets = get_sheets()
     country = sheets.find_record(SHEET_COUNTRIES, "country_code", country_code)
     if not country:
-        return HTMLResponse("<h3>Mamlakat ma'lumoti topilmadi.</h3>", status_code=404)
+        return HTMLResponse("<h3>Mamlakat topilmadi.</h3>", status_code=404)
 
     instagram_app_link = country.get("instagram_app_link", "")
     instagram_web_link = country.get("instagram_web_link", "")
-
     client_ip, forwarded_ip = _get_ip(request)
     user_agent = request.headers.get("User-Agent", "")
     referer = request.headers.get("Referer", "")
@@ -52,35 +45,32 @@ async def tracking_redirect(employee_code: str, request: Request, event: Optiona
     qr_id = employee.get("qr_id", "")
     if event_id:
         event_qr = next(
-            (
-                r
-                for r in sheets.find_records(SHEET_QR_CODES, "employee_id", employee["employee_id"])
-                if r.get("event_id") == event_id
-            ),
-            None,
-        )
+            (r for r in sheets.find_records(SHEET_QR_CODES, "employee_id", employee["employee_id"])
+             if r.get("event_id") == event_id), None)
         if event_qr:
             qr_id = event_qr.get("qr_id", qr_id)
 
-    from app.config import settings
+    # Server-side pre-log
+    pre_scan_id = create_server_pre_log(
+        employee_id=employee["employee_id"], employee_code=employee_code,
+        country_code=country_code, event_id=event_id, qr_id=qr_id,
+        ip_address=client_ip, forwarded_ip=forwarded_ip,
+        user_agent=user_agent, referer=referer,
+        accept_language=accept_language, request_path=request.url.path,
+        query_string=str(request.query_params), instagram_target=instagram_web_link,
+    )
 
+    from app.config import settings
     context = {
-        "request": request,
-        "employee_id": employee["employee_id"],
-        "employee_code": employee_code,
-        "event_id": event_id,
-        "qr_id": qr_id,
-        "country_code": country_code,
-        "instagram_app_link": instagram_app_link,
-        "instagram_web_link": instagram_web_link,
-        "ip_address": client_ip,
-        "forwarded_ip": forwarded_ip,
-        "user_agent": user_agent,
-        "referer": referer,
-        "accept_language": accept_language,
-        "request_path": request.url.path,
+        "request": request, "employee_id": employee["employee_id"],
+        "employee_code": employee_code, "event_id": event_id,
+        "qr_id": qr_id, "country_code": country_code,
+        "instagram_app_link": instagram_app_link, "instagram_web_link": instagram_web_link,
+        "ip_address": client_ip, "forwarded_ip": forwarded_ip,
+        "user_agent": user_agent, "referer": referer,
+        "accept_language": accept_language, "request_path": request.url.path,
         "query_string": str(request.query_params),
-        "api_base": settings.BASE_URL,
+        "api_base": settings.BASE_URL, "pre_scan_id": pre_scan_id,
     }
     return templates.TemplateResponse("redirect.html", context)
 
@@ -111,39 +101,27 @@ class ClientLogPayload(BaseModel):
     timezone: str = ""
     deep_link_attempted: bool = False
     fallback_used: bool = False
+    pre_scan_id: str = ""
 
 
 @router.post("/api/tracking/client-log")
 async def client_log(payload: ClientLogPayload):
     try:
         from app.services.scans_service import process_scan
-
         result = process_scan(
-            employee_id=payload.employee_id,
-            employee_code=payload.employee_code,
-            country_code=payload.country_code,
-            event_id=payload.event_id,
-            qr_id=payload.qr_id,
-            ip_address=payload.ip_address,
-            forwarded_ip=payload.forwarded_ip,
-            user_agent=payload.user_agent,
-            referer=payload.referer,
-            accept_language=payload.accept_language,
-            request_path=payload.request_path,
-            query_string=payload.query_string,
-            instagram_target=payload.instagram_target,
-            fingerprint_id=payload.fingerprint_id,
-            device_type=payload.device_type,
-            os_name=payload.os_name,
-            browser_name=payload.browser_name,
-            platform=payload.platform,
-            screen_width=payload.screen_width,
-            screen_height=payload.screen_height,
-            viewport_width=payload.viewport_width,
-            viewport_height=payload.viewport_height,
-            timezone=payload.timezone,
-            deep_link_attempted=payload.deep_link_attempted,
-            fallback_used=payload.fallback_used,
+            employee_id=payload.employee_id, employee_code=payload.employee_code,
+            country_code=payload.country_code, event_id=payload.event_id,
+            qr_id=payload.qr_id, ip_address=payload.ip_address,
+            forwarded_ip=payload.forwarded_ip, user_agent=payload.user_agent,
+            referer=payload.referer, accept_language=payload.accept_language,
+            request_path=payload.request_path, query_string=payload.query_string,
+            instagram_target=payload.instagram_target, fingerprint_id=payload.fingerprint_id,
+            device_type=payload.device_type, os_name=payload.os_name,
+            browser_name=payload.browser_name, platform=payload.platform,
+            screen_width=payload.screen_width, screen_height=payload.screen_height,
+            viewport_width=payload.viewport_width, viewport_height=payload.viewport_height,
+            timezone=payload.timezone, deep_link_attempted=payload.deep_link_attempted,
+            fallback_used=payload.fallback_used, pre_scan_id=payload.pre_scan_id,
         )
         return {"ok": True, "scan_id": result["scan_id"]}
     except Exception as e:

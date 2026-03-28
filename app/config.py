@@ -1,5 +1,5 @@
 import json
-from typing import Optional
+from typing import Optional, List
 from pydantic_settings import BaseSettings
 
 
@@ -12,6 +12,8 @@ class Settings(BaseSettings):
     GOOGLE_SERVICE_ACCOUNT_JSON_PATH: Optional[str] = None
     GOOGLE_SERVICE_ACCOUNT_JSON: Optional[str] = None
     SPREADSHEET_NAME: str = "Jelly Follow - PROD"
+    SPREADSHEET_ID: Optional[str] = None
+    SHEETS_SHARE_EMAILS: Optional[str] = None  # comma-separated
 
     DEFAULT_TIMEZONE: str = "Asia/Tashkent"
     APP_ENV: str = "production"
@@ -20,6 +22,7 @@ class Settings(BaseSettings):
 
     SUPER_ADMIN_TELEGRAM_ID: str
     INTERNAL_SECRET: str = "change_this"
+    ADMIN_WEB_SECRET: str = "change_this_web"
 
     INSTAGRAM_UZ_USERNAME: str = "jelly.uz"
     INSTAGRAM_RU_USERNAME: str = "jelly.ru"
@@ -37,6 +40,11 @@ class Settings(BaseSettings):
             with open(self.GOOGLE_SERVICE_ACCOUNT_JSON_PATH) as f:
                 return json.load(f)
         raise ValueError("Google credentials not configured")
+
+    def get_share_emails(self) -> list[str]:
+        if not self.SHEETS_SHARE_EMAILS:
+            return []
+        return [e.strip() for e in self.SHEETS_SHARE_EMAILS.split(",") if e.strip()]
 
     def get_instagram_links(self, country_code: str) -> dict:
         mapping = {

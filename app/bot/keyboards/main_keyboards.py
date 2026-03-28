@@ -1,90 +1,62 @@
-"""
-Keyboards for Telegram bot.
-"""
+"""All keyboards — fully button-based."""
 from aiogram.types import (
-    ReplyKeyboardMarkup, KeyboardButton,
-    InlineKeyboardMarkup, InlineKeyboardButton,
-    ReplyKeyboardRemove,
+    ReplyKeyboardMarkup, KeyboardButton, InlineKeyboardMarkup, InlineKeyboardButton,
 )
-from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from app.bot.texts.translations import t
 
 ADMIN_PANEL_TEXT = "👑 Admin panel"
 
 
-def lang_select_keyboard() -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    langs = [
-        ("uz", "🇺🇿 O'zbekcha"),
-        ("ru", "🇷🇺 Русский"),
-        ("en", "🇬🇧 English"),
-        ("kg", "🇰🇬 Кыргызча"),
-        ("az", "🇦🇿 Azərbaycanca"),
+def lang_select_keyboard():
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text="🇺🇿 O'zbekcha", callback_data="setlang:uz"),
+         InlineKeyboardButton(text="🇷🇺 Русский", callback_data="setlang:ru")],
+        [InlineKeyboardButton(text="🇬🇧 English", callback_data="setlang:en"),
+         InlineKeyboardButton(text="🇰🇬 Кыргызча", callback_data="setlang:kg")],
+        [InlineKeyboardButton(text="🇦🇿 Azərbaycanca", callback_data="setlang:az")],
+    ])
+
+
+def phone_keyboard(lang="uz"):
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=t("reg.send_phone_btn", lang), request_contact=True)]],
+        resize_keyboard=True, one_time_keyboard=True,
+    )
+
+
+def country_keyboard(lang="uz"):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t("country.UZ", lang), callback_data="setcountry:UZ"),
+         InlineKeyboardButton(text=t("country.RU", lang), callback_data="setcountry:RU")],
+        [InlineKeyboardButton(text=t("country.KG", lang), callback_data="setcountry:KG"),
+         InlineKeyboardButton(text=t("country.AZ", lang), callback_data="setcountry:AZ")],
+    ])
+
+
+def main_menu_keyboard(lang="uz", is_admin=False):
+    rows = [
+        [KeyboardButton(text=t("menu.profile", lang)), KeyboardButton(text=t("menu.my_qr", lang))],
+        [KeyboardButton(text=t("menu.my_link", lang)), KeyboardButton(text=t("menu.stats", lang))],
+        [KeyboardButton(text=t("menu.events", lang)), KeyboardButton(text=t("menu.rating", lang))],
+        [KeyboardButton(text=t("menu.change_lang", lang)), KeyboardButton(text=t("menu.help", lang))],
     ]
-    for code, label in langs:
-        builder.button(text=label, callback_data=f"setlang:{code}")
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def phone_keyboard(lang: str) -> ReplyKeyboardMarkup:
-    builder = ReplyKeyboardBuilder()
-    builder.button(text=t("reg.send_phone_btn", lang), request_contact=True)
-    return builder.as_markup(resize_keyboard=True, one_time_keyboard=True)
-
-
-def country_keyboard(lang: str) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    countries = ["UZ", "RU", "KG", "AZ"]
-    for cc in countries:
-        builder.button(text=t(f"country.{cc}", lang), callback_data=f"setcountry:{cc}")
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def main_menu_keyboard(lang: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
-    builder = ReplyKeyboardBuilder()
-    buttons = [
-        t("menu.profile", lang),
-        t("menu.my_qr", lang),
-        t("menu.my_link", lang),
-        t("menu.stats", lang),
-        t("menu.events", lang),
-        t("menu.rating", lang),
-        t("menu.change_lang", lang),
-        t("menu.help", lang),
-    ]
-    for b in buttons:
-        builder.button(text=b)
     if is_admin:
-        builder.button(text=ADMIN_PANEL_TEXT)
-        builder.adjust(2, 2, 2, 2, 1)
-    else:
-        builder.adjust(2)
-    return builder.as_markup(resize_keyboard=True)
+        rows.append([KeyboardButton(text=ADMIN_PANEL_TEXT)])
+    return ReplyKeyboardMarkup(keyboard=rows, resize_keyboard=True)
 
 
-def qr_resend_keyboard(lang: str) -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
-    builder.button(text=t("qr.resend", lang), callback_data="qr:resend")
-    return builder.as_markup()
+def qr_resend_keyboard(lang="uz"):
+    return InlineKeyboardMarkup(inline_keyboard=[
+        [InlineKeyboardButton(text=t("qr.resend", lang), callback_data="qr:resend")],
+    ])
 
 
-def event_participate_keyboard(lang: str, event_id: str, current_status: str = "") -> InlineKeyboardMarkup:
-    builder = InlineKeyboardBuilder()
+def event_participate_keyboard(lang, event_id, current_status=""):
+    buttons = []
     if current_status != "accepted":
-        builder.button(text=t("events.join", lang), callback_data=f"event:join:{event_id}")
+        buttons.append(InlineKeyboardButton(text=t("events.join", lang), callback_data=f"event:join:{event_id}"))
     if current_status != "declined":
-        builder.button(text=t("events.decline", lang), callback_data=f"event:decline:{event_id}")
-    builder.adjust(2)
-    return builder.as_markup()
-
-
-def back_keyboard(lang: str) -> ReplyKeyboardMarkup:
-    builder = ReplyKeyboardBuilder()
-    builder.button(text=t("generic.back", lang))
-    return builder.as_markup(resize_keyboard=True, one_time_keyboard=True)
-
-
-def remove_keyboard() -> ReplyKeyboardRemove:
-    return ReplyKeyboardRemove()
+        buttons.append(InlineKeyboardButton(text=t("events.decline", lang), callback_data=f"event:decline:{event_id}"))
+    if not buttons:
+        return None
+    return InlineKeyboardMarkup(inline_keyboard=[buttons])
