@@ -4,16 +4,15 @@ GET /r/{employee_code}         → redirect page + log
 POST /api/tracking/client-log → receive JS-side device data
 """
 import logging
-from fastapi import APIRouter, Request, Response
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from pydantic import BaseModel
 from typing import Optional
 
 from app.services.employees_service import get_employee_by_code
-from app.services.events_service import get_event_by_id
-from app.integrations.google_sheets import get_sheets, SHEET_COUNTRIES
-from app.utils.datetime_utils import now_str
+from app.services.events_service import resolve_event_identifier
+from app.integrations.google_sheets import get_sheets, SHEET_COUNTRIES, SHEET_QR_CODES
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -28,19 +27,7 @@ def _get_ip(request: Request) -> tuple[str, str]:
 
 
 @router.get("/r/{employee_code}", response_class=HTMLResponse)
-async def tracking_redirect(
-    employee_code: str,
-    request: Request,
-    event: Optional[str] = None,
-):
-    """
-    Main tracking endpoint.
-    Returns an HTML page that:
-    1. Collects JS device info
-    2. Posts to /api/tracking/client-log
-    3. Attempts Instagram deep-link
-    4. Falls back to web Instagram
-    """
+async def tracking_redirect(employee_code: str, request: Request, event: Optional[str] = None):
     employee = get_employee_by_code(employee_code)
     if not employee or employee.get("status") != "active":
         return HTMLResponse("<h3>Link topilmadi.</h3>", status_code=404)
@@ -48,7 +35,6 @@ async def tracking_redirect(
     country_code = employee.get("country_code", "UZ")
     sheets = get_sheets()
     country = sheets.find_record(SHEET_COUNTRIES, "country_code", country_code)
-
     if not country:
         return HTMLResponse("<h3>Mamlakat ma'lumoti topilmadi.</h3>", status_code=404)
 
@@ -60,11 +46,23 @@ async def tracking_redirect(
     referer = request.headers.get("Referer", "")
     accept_language = request.headers.get("Accept-Language", "")
 
-    event_id = event or ""
+    event_record = resolve_event_identifier(event or "") if event else None
+    event_id = event_record.get("event_id", "") if event_record else ""
+
     qr_id = employee.get("qr_id", "")
+    if event_id:
+        event_qr = next(
+            (
+                r
+                for r in sheets.find_records(SHEET_QR_CODES, "employee_id", employee["employee_id"])
+                if r.get("event_id") == event_id
+            ),
+            None,
+        )
+        if event_qr:
+            qr_id = event_qr.get("qr_id", qr_id)
 
     from app.config import settings
-    api_base = settings.BASE_URL
 
     context = {
         "request": request,
@@ -82,7 +80,7 @@ async def tracking_redirect(
         "accept_language": accept_language,
         "request_path": request.url.path,
         "query_string": str(request.query_params),
-        "api_base": api_base,
+        "api_base": settings.BASE_URL,
     }
     return templates.TemplateResponse("redirect.html", context)
 
@@ -93,7 +91,6 @@ class ClientLogPayload(BaseModel):
     event_id: str = ""
     qr_id: str = ""
     country_code: str = ""
-    # Server data echoed back
     ip_address: str = ""
     forwarded_ip: str = ""
     user_agent: str = ""
@@ -102,7 +99,6 @@ class ClientLogPayload(BaseModel):
     request_path: str = ""
     query_string: str = ""
     instagram_target: str = ""
-    # Client JS data
     fingerprint_id: str = ""
     device_type: str = ""
     os_name: str = ""
@@ -119,9 +115,9 @@ class ClientLogPayload(BaseModel):
 
 @router.post("/api/tracking/client-log")
 async def client_log(payload: ClientLogPayload):
-    """Receive client-side JS device data and process full scan."""
     try:
         from app.services.scans_service import process_scan
+
         result = process_scan(
             employee_id=payload.employee_id,
             employee_code=payload.employee_code,
@@ -151,5 +147,5 @@ async def client_log(payload: ClientLogPayload):
         )
         return {"ok": True, "scan_id": result["scan_id"]}
     except Exception as e:
-        logger.error(f"client-log error: {e}")
+        logger.error("client-log error: %s", e)
         return {"ok": False, "error": str(e)}

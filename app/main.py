@@ -24,8 +24,8 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 USE_WEBHOOK = os.getenv("APP_ENV", "development").lower() == "production"
-BOOTSTRAP_ON_START = os.getenv("BOOTSTRAP_ON_START", "false").lower() == "true"
-SEED_SUPER_ADMIN_ON_START = os.getenv("SEED_SUPER_ADMIN_ON_START", "false").lower() == "true"
+BOOTSTRAP_ON_START = settings.BOOTSTRAP_ON_START
+SEED_SUPER_ADMIN_ON_START = settings.SEED_SUPER_ADMIN_ON_START
 
 
 @asynccontextmanager

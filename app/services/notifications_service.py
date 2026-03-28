@@ -2,11 +2,11 @@
 Notifications service — send Telegram messages to employees.
 """
 import logging
-import asyncio
 from typing import Optional
 
 from aiogram import Bot
 from app.config import settings
+from app.bot.keyboards.main_keyboards import event_participate_keyboard
 
 logger = logging.getLogger(__name__)
 
@@ -21,10 +21,6 @@ def get_bot() -> Bot:
 
 
 async def notify_event_started(employees: list[dict], event: dict, rewards: list[dict]):
-    """
-    Send event notification to all relevant employees.
-    employees: list of employee dicts with telegram_user_id and language_code
-    """
     from app.bot.texts.translations import t
 
     bot = get_bot()
@@ -49,10 +45,15 @@ async def notify_event_started(employees: list[dict], event: dict, rewards: list
         )
 
         try:
-            await bot.send_message(chat_id=int(tg_id), text=text, parse_mode="HTML")
-            logger.info(f"Notified employee {emp.get('employee_id')} about event {event.get('event_id')}")
+            await bot.send_message(
+                chat_id=int(tg_id),
+                text=text,
+                parse_mode="HTML",
+                reply_markup=event_participate_keyboard(lang, event.get("event_id", ""), ""),
+            )
+            logger.info("Notified employee %s about event %s", emp.get("employee_id"), event.get("event_id"))
         except Exception as e:
-            logger.warning(f"Failed to notify {tg_id}: {e}")
+            logger.warning("Failed to notify %s: %s", tg_id, e)
 
 
 async def send_message(telegram_user_id: int, text: str):
@@ -60,4 +61,4 @@ async def send_message(telegram_user_id: int, text: str):
     try:
         await bot.send_message(chat_id=telegram_user_id, text=text, parse_mode="HTML")
     except Exception as e:
-        logger.warning(f"Failed to send message to {telegram_user_id}: {e}")
+        logger.warning("Failed to send message to %s: %s", telegram_user_id, e)

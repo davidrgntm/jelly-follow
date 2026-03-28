@@ -1,34 +1,26 @@
-import os
 import json
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from typing import Optional
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
-    # Telegram
     BOT_TOKEN: str
 
-    # Domains
     BASE_URL: str = "https://api.follow.jelly.uz"
     TRACKING_DOMAIN: str = "https://go.jelly.uz"
 
-    # Google Sheets
     GOOGLE_SERVICE_ACCOUNT_JSON_PATH: Optional[str] = None
     GOOGLE_SERVICE_ACCOUNT_JSON: Optional[str] = None
     SPREADSHEET_NAME: str = "Jelly Follow - PROD"
 
-    # App
     DEFAULT_TIMEZONE: str = "Asia/Tashkent"
     APP_ENV: str = "production"
+    BOOTSTRAP_ON_START: bool = False
+    SEED_SUPER_ADMIN_ON_START: bool = False
 
-    # Admin
     SUPER_ADMIN_TELEGRAM_ID: str
-
-    # Security
     INTERNAL_SECRET: str = "change_this"
 
-    # Instagram usernames
     INSTAGRAM_UZ_USERNAME: str = "jelly.uz"
     INSTAGRAM_RU_USERNAME: str = "jelly.ru"
     INSTAGRAM_KG_USERNAME: str = "jelly.kg"

@@ -3,21 +3,27 @@ Admin handlers.
 Commands only accessible to admins/super_admins.
 """
 import logging
-from aiogram import Router, F
+from aiogram import Router
 from aiogram.types import Message
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 from aiogram.filters import Command
 
 from app.services.admins_service import (
-    get_admin_by_telegram_id, is_admin, is_super_admin, create_admin,
+    get_admin_by_telegram_id,
+    is_admin,
+    is_super_admin,
+    create_admin,
+    get_system_stats,
 )
-from app.services.employees_service import (
-    get_all_employees, update_employee_status, get_employee_by_code,
-)
+from app.services.employees_service import get_all_employees, update_employee_status, get_employee_by_code
 from app.services.events_service import (
-    create_event, set_event_status, get_all_events, get_event_by_id,
-    get_event_countries, get_event_rewards,
+    create_event,
+    set_event_status,
+    get_all_events,
+    get_event_by_id,
+    get_event_countries,
+    get_event_rewards,
 )
 from app.services.points_service import manual_adjust
 from app.services.leaderboard_service import build_leaderboard
@@ -35,8 +41,6 @@ def _super_check(tg_id) -> bool:
     return is_super_admin(tg_id)
 
 
-# ── Admin panel ───────────────────────────────────────────────────────────────
-
 @router.message(Command("admin"))
 async def cmd_admin(message: Message):
     tg_id = message.from_user.id
@@ -52,15 +56,15 @@ async def cmd_admin(message: Message):
         f"Buyruqlar:\n"
         f"/employees — xodimlar ro'yxati\n"
         f"/events — eventlar\n"
-        f"/leaderboard — reyting\n"
+        f"/leaderboard [CC] [all|today|week|month] — reyting\n"
+        f"/eventleaderboard <event_id> [all|today|week|month] — event reytingi\n"
         f"/manualpoints — ball berish\n"
+        f"/systemstats — umumiy statistika\n"
     )
     if _super_check(tg_id):
         text += f"/addadmin — yangi admin qo'shish\n"
     await message.answer(text, parse_mode="HTML")
 
-
-# ── Employees list ────────────────────────────────────────────────────────────
 
 @router.message(Command("employees"))
 async def cmd_employees(message: Message):
@@ -75,8 +79,7 @@ async def cmd_employees(message: Message):
     lines = []
     for e in employees[:30]:
         lines.append(
-            f"• <code>{e.get('employee_code')}</code> {e.get('full_name')} "
-            f"[{e.get('country_code')}] — {e.get('status')}"
+            f"• <code>{e.get('employee_code')}</code> {e.get('full_name')} [{e.get('country_code')}] — {e.get('status')}"
         )
     text = f"👥 <b>Xodimlar ({len(employees)} ta)</b>\n\n" + "\n".join(lines)
     if len(employees) > 30:
@@ -84,11 +87,8 @@ async def cmd_employees(message: Message):
     await message.answer(text, parse_mode="HTML")
 
 
-# ── Change employee status ────────────────────────────────────────────────────
-
 @router.message(Command("setstatus"))
 async def cmd_setstatus(message: Message):
-    """Usage: /setstatus UZ-0001 blocked"""
     if not _admin_check(message.from_user.id):
         return
     parts = message.text.split()
@@ -108,8 +108,6 @@ async def cmd_setstatus(message: Message):
     await message.answer(f"✅ {code} → {status}")
 
 
-# ── Events management ─────────────────────────────────────────────────────────
-
 @router.message(Command("events"))
 async def cmd_events(message: Message):
     if not _admin_check(message.from_user.id):
@@ -122,7 +120,8 @@ async def cmd_events(message: Message):
     for e in events:
         lines.append(
             f"• <code>{e.get('event_id')}</code> <b>{e.get('event_name')}</b> [{e.get('status')}]\n"
-            f"  {e.get('start_at')} — {e.get('end_at')}"
+            f"  {e.get('start_at')} — {e.get('end_at')}\n"
+            f"  Mamlakatlar: {', '.join(e.get('countries', [])) or '-'}"
         )
     await message.answer("🏆 <b>Eventlar</b>\n\n" + "\n".join(lines), parse_mode="HTML")
 
@@ -182,7 +181,7 @@ async def evt_rules(message: Message, state: FSMContext):
 
 @router.message(EventCreateStates.countries)
 async def evt_countries(message: Message, state: FSMContext):
-    codes = [c.strip().upper() for c in message.text.split(",")]
+    codes = [c.strip().upper() for c in message.text.split(",") if c.strip()]
     await state.update_data(countries=codes)
     await state.set_state(EventCreateStates.rewards)
     await message.answer(
@@ -200,12 +199,14 @@ async def evt_rewards(message: Message, state: FSMContext):
         for line in message.text.strip().splitlines():
             parts = line.split("|")
             if len(parts) >= 3:
-                rewards.append({
-                    "place_number": int(parts[0]),
-                    "reward_title": parts[1],
-                    "reward_amount": parts[2],
-                    "currency_code": parts[3] if len(parts) > 3 else "UZS",
-                })
+                rewards.append(
+                    {
+                        "place_number": int(parts[0]),
+                        "reward_title": parts[1],
+                        "reward_amount": parts[2],
+                        "currency_code": parts[3] if len(parts) > 3 else "UZS",
+                    }
+                )
 
     admin = get_admin_by_telegram_id(message.from_user.id)
     event = create_event(
@@ -220,9 +221,7 @@ async def evt_rewards(message: Message, state: FSMContext):
     )
     await state.clear()
     await message.answer(
-        f"✅ Event yaratildi!\n"
-        f"🆔 <code>{event['event_id']}</code>\n"
-        f"Faollashtirish: /activateevent {event['event_id']}",
+        f"✅ Event yaratildi!\n🆔 <code>{event['event_id']}</code>\nFaollashtirish: /activateevent {event['event_id']}",
         parse_mode="HTML",
     )
 
@@ -242,18 +241,19 @@ async def cmd_activate_event(message: Message):
         await message.answer(f"❌ {e}")
         return
 
-    # Notify employees
     from app.services.employees_service import get_all_employees
+
     event = get_event_by_id(event_id)
     countries = get_event_countries(event_id)
     rewards = get_event_rewards(event_id)
     all_emps = get_all_employees()
     relevant = [
-        e for e in all_emps
-        if e.get("country_code", "").upper() in [c.upper() for c in countries]
-        and e.get("status") == "active"
+        e
+        for e in all_emps
+        if e.get("country_code", "").upper() in [c.upper() for c in countries] and e.get("status") == "active"
     ]
     import asyncio
+
     asyncio.create_task(notify_event_started(relevant, event, rewards))
     await message.answer(f"✅ Event faollashtirildi! {len(relevant)} xodimga xabar yuborilmoqda.")
 
@@ -282,15 +282,14 @@ async def cmd_finish_event(message: Message):
     await message.answer("🏁 Event yakunlandi.")
 
 
-# ── Leaderboard ───────────────────────────────────────────────────────────────
-
 @router.message(Command("leaderboard"))
 async def cmd_leaderboard(message: Message):
     if not _admin_check(message.from_user.id):
         return
     parts = message.text.split()
-    country = parts[1].upper() if len(parts) > 1 else None
-    lb = build_leaderboard(country_code=country, top_n=20)
+    country = parts[1].upper() if len(parts) > 1 and parts[1].upper() in {"UZ", "RU", "KG", "AZ"} else None
+    period = parts[2] if len(parts) > 2 else "all"
+    lb = build_leaderboard(country_code=country, period=period, top_n=20)
     if not lb:
         await message.answer("📭 Ma'lumot yo'q.")
         return
@@ -299,15 +298,38 @@ async def cmd_leaderboard(message: Message):
     for e in lb:
         m = medals.get(e["rank"], f"{e['rank']}.")
         lines.append(f"{m} {e['full_name']} [{e['country_code']}] — <b>{e['points']}</b>")
-    header = f"🥇 Reyting{' — ' + country if country else ''}\n\n"
+    header = f"🥇 Reyting{' — ' + country if country else ''} ({period})\n\n"
     await message.answer(header + "\n".join(lines), parse_mode="HTML")
 
 
-# ── Manual points ─────────────────────────────────────────────────────────────
+@router.message(Command("eventleaderboard"))
+async def cmd_event_leaderboard(message: Message):
+    if not _admin_check(message.from_user.id):
+        return
+    parts = message.text.split()
+    if len(parts) < 2:
+        await message.answer("Foydalanish: /eventleaderboard <event_id> [all|today|week|month]")
+        return
+    event_id = parts[1]
+    period = parts[2] if len(parts) > 2 else "all"
+    event = get_event_by_id(event_id)
+    if not event:
+        await message.answer("❌ Event topilmadi")
+        return
+    lb = build_leaderboard(event_id=event_id, period=period, top_n=20)
+    if not lb:
+        await message.answer("📭 Event bo'yicha ma'lumot yo'q.")
+        return
+    medals = {1: "🥇", 2: "🥈", 3: "🥉"}
+    lines = []
+    for e in lb:
+        m = medals.get(e["rank"], f"{e['rank']}.")
+        lines.append(f"{m} {e['full_name']} [{e['country_code']}] — <b>{e['points']}</b>")
+    await message.answer(f"🏆 <b>{event.get('event_name')}</b> ({period})\n\n" + "\n".join(lines), parse_mode="HTML")
+
 
 @router.message(Command("manualpoints"))
 async def cmd_manual_points(message: Message):
-    """Usage: /manualpoints UZ-0001 +10 bonus_reason"""
     if not _admin_check(message.from_user.id):
         return
     parts = message.text.split()
@@ -336,11 +358,28 @@ async def cmd_manual_points(message: Message):
     await message.answer(f"✅ {code} ga {delta:+d} ball ({reason})")
 
 
-# ── Add admin ─────────────────────────────────────────────────────────────────
+@router.message(Command("systemstats"))
+async def cmd_systemstats(message: Message):
+    if not _admin_check(message.from_user.id):
+        return
+    stats = get_system_stats()
+    text = (
+        "📊 <b>Tizim statistikasi</b>\n\n"
+        f"👥 Xodimlar: <b>{stats['employees_total']}</b>\n"
+        f"✅ Faol xodimlar: <b>{stats['employees_active']}</b>\n"
+        f"👑 Adminlar: <b>{stats['admins_total']}</b>\n"
+        f"🏆 Eventlar: <b>{stats['events_total']}</b>\n"
+        f"🟢 Faol eventlar: <b>{stats['events_active']}</b>\n"
+        f"📱 Skanlar: <b>{stats['scans_total']}</b>\n"
+        f"✨ Unique award: <b>{stats['unique_awards']}</b>\n"
+        f"🔁 Duplicate scans: <b>{stats['duplicate_scans']}</b>\n"
+        f"⭐ Jami ball: <b>{stats['points_total']}</b>"
+    )
+    await message.answer(text, parse_mode="HTML")
+
 
 @router.message(Command("addadmin"))
 async def cmd_add_admin(message: Message):
-    """Usage: /addadmin <telegram_id> <full_name> <role: ga|super_admin>"""
     if not _super_check(message.from_user.id):
         await message.answer("❌ Faqat super admin uchun.")
         return

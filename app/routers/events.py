@@ -1,9 +1,15 @@
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import List
 
 from app.services.events_service import (
-    create_event, set_event_status, get_event_by_id, respond_participation,
+    create_event,
+    set_event_status,
+    get_event_by_id,
+    get_all_events,
+    get_active_events,
+    hydrate_event,
+    respond_participation,
 )
 from app.services.leaderboard_service import build_leaderboard
 from app.config import settings
@@ -37,7 +43,21 @@ class CreateEventPayload(BaseModel):
 class ParticipationPayload(BaseModel):
     employee_id: str
     country_code: str
-    status: str  # accepted | declined
+    status: str
+
+
+@router.get("")
+async def api_list_events(status: str = ""):
+    events = get_active_events() if status == "active" else get_all_events()
+    return {"events": events}
+
+
+@router.get("/{event_id}")
+async def api_get_event(event_id: str):
+    event = hydrate_event(get_event_by_id(event_id))
+    if not event:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return event
 
 
 @router.post("/create")
@@ -50,7 +70,7 @@ async def api_create_event(payload: CreateEventPayload, x_internal_secret: str =
         end_at=payload.end_at,
         rules_text=payload.rules_text,
         country_codes=payload.country_codes,
-        rewards=[r.dict() for r in payload.rewards],
+        rewards=[r.model_dump() for r in payload.rewards],
         created_by_admin_id=payload.created_by_admin_id,
     )
     return event
@@ -89,6 +109,6 @@ async def api_participation(event_id: str, payload: ParticipationPayload):
 
 
 @router.get("/{event_id}/leaderboard")
-async def api_event_leaderboard(event_id: str):
-    lb = build_leaderboard(event_id=event_id, top_n=50)
+async def api_event_leaderboard(event_id: str, period: str = "all"):
+    lb = build_leaderboard(event_id=event_id, period=period, top_n=50)
     return {"leaderboard": lb}

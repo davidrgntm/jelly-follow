@@ -1,8 +1,7 @@
 from fastapi import APIRouter, HTTPException, Header
 from pydantic import BaseModel
-from typing import Optional
 
-from app.services.admins_service import create_admin
+from app.services.admins_service import create_admin, get_system_stats
 from app.services.employees_service import update_employee_status, get_employee_by_id
 from app.services.points_service import manual_adjust
 from app.config import settings
@@ -36,6 +35,12 @@ class ManualPointsPayload(BaseModel):
     admin_id: str
     event_id: str = ""
     country_code: str = ""
+
+
+@router.get("/stats")
+async def api_admin_stats(x_internal_secret: str = Header("")):
+    _check_internal(x_internal_secret)
+    return get_system_stats()
 
 
 @router.post("/create")
