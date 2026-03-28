@@ -1,6 +1,7 @@
 """
 Registration flow handler.
 Steps: /start → language → phone → name → country → done
+Admin/GA users are not forced into employee registration.
 """
 import logging
 from aiogram import Router, F
@@ -15,6 +16,7 @@ from app.bot.keyboards.main_keyboards import (
 from app.services.employees_service import (
     register_employee, get_employee_by_telegram_id,
 )
+from app.services.admins_service import is_admin
 from app.services.qr_service import generate_employee_qr
 from app.utils.validators import normalize_phone
 
@@ -29,26 +31,31 @@ class RegStates(StatesGroup):
     choosing_country = State()
 
 
-# ── /start ─────────────────────────────────────────────────────────────────
-
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, employee: dict, lang: str):
+    await state.clear()
+
+    admin_mode = is_admin(message.from_user.id)
+
     if employee and employee.get("status") == "active":
+        text = t("reg.already", lang)
+        if admin_mode:
+            text += "\n\n👑 Admin panel uchun /admin yuboring."
+        await message.answer(text, reply_markup=main_menu_keyboard(lang))
+        return
+
+    if admin_mode:
         await message.answer(
-            t("reg.already", lang),
-            reply_markup=main_menu_keyboard(lang),
+            "👑 Siz admin/GA sifatida tanilgansiz.\n\nAdmin panelni ochish uchun /admin yuboring.",
         )
         return
 
-    await state.clear()
     await state.set_state(RegStates.choosing_lang)
     await message.answer(
         t("start.choose_lang", "uz"),
         reply_markup=lang_select_keyboard(),
     )
 
-
-# ── Language select ──────────────────────────────────────────────────────────
 
 @router.callback_query(F.data.startswith("setlang:"), RegStates.choosing_lang)
 async def cb_set_lang(cb: CallbackQuery, state: FSMContext):
@@ -62,8 +69,6 @@ async def cb_set_lang(cb: CallbackQuery, state: FSMContext):
     )
     await cb.answer()
 
-
-# ── Phone ────────────────────────────────────────────────────────────────────
 
 @router.message(RegStates.sending_phone, F.contact)
 async def handle_phone_contact(message: Message, state: FSMContext):
@@ -88,8 +93,6 @@ async def handle_phone_text(message: Message, state: FSMContext):
     await message.answer(t("reg.send_name", lang))
 
 
-# ── Name ─────────────────────────────────────────────────────────────────────
-
 @router.message(RegStates.sending_name, F.text)
 async def handle_name(message: Message, state: FSMContext):
     data = await state.get_data()
@@ -103,15 +106,12 @@ async def handle_name(message: Message, state: FSMContext):
     await message.answer(t("reg.choose_country", lang), reply_markup=country_keyboard(lang))
 
 
-# ── Country ───────────────────────────────────────────────────────────────────
-
 @router.callback_query(F.data.startswith("setcountry:"), RegStates.choosing_country)
 async def cb_set_country(cb: CallbackQuery, state: FSMContext):
     data = await state.get_data()
     lang = data.get("lang", "uz")
     country_code = cb.data.split(":")[1]
 
-    # Register employee
     tg_user = cb.from_user
     try:
         emp = register_employee(
@@ -122,7 +122,6 @@ async def cb_set_country(cb: CallbackQuery, state: FSMContext):
             country_code=country_code,
             language_code=lang,
         )
-        # Generate QR
         generate_employee_qr(
             employee_id=emp["employee_id"],
             employee_code=emp["employee_code"],
