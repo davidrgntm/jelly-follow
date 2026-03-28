@@ -14,8 +14,16 @@ from app.utils.ids import (
 from app.utils.datetime_utils import (
     now_str, start_of_day_utc, start_of_week_utc, start_of_month_utc,
 )
+from app.services.events_service import get_all_events
 
 logger = logging.getLogger(__name__)
+
+
+def _norm_ts(ts: str) -> str:
+    ts = (ts or "").strip()
+    if len(ts) == 16:
+        return ts + ":00"
+    return ts
 
 
 def register_employee(
@@ -26,10 +34,8 @@ def register_employee(
     country_code: str,
     language_code: str,
 ) -> dict:
-    """Create new employee. Returns employee dict."""
     sheets = get_sheets()
 
-    # Check duplicate
     existing = sheets.find_record(SHEET_EMPLOYEES, "telegram_user_id", str(telegram_user_id))
     if existing:
         return existing
@@ -37,7 +43,6 @@ def register_employee(
     seq = sheets.get_next_seq(SHEET_EMPLOYEES)
     employee_id = generate_employee_id(seq)
 
-    # Employee code: per country sequence
     country_employees = sheets.find_records(SHEET_EMPLOYEES, "country_code", country_code.upper())
     country_seq = len(country_employees) + 1
     employee_code = generate_employee_code(country_code, country_seq)
@@ -53,7 +58,6 @@ def register_employee(
     ]
     sheets.append_row(SHEET_EMPLOYEES, row)
 
-    # Log
     _log(sheets, "employee_created", "employee", employee_id,
          f"Employee created: {employee_code} ({full_name})")
 
@@ -104,23 +108,23 @@ def get_employee_stats(employee_id: str) -> dict:
     txs = sheets.find_records(SHEET_POINT_TRANSACTIONS, "employee_id", employee_id)
     scans = sheets.find_records(SHEET_SCANS_RAW, "employee_id", employee_id)
 
-    total_points = sum(int(t.get("points_delta", 0)) for t in txs)
+    total_points = sum(int(t.get("points_delta", 0) or 0) for t in txs)
 
     day_start = start_of_day_utc().strftime("%Y-%m-%d")
     week_start = start_of_week_utc().strftime("%Y-%m-%d")
     month_start = start_of_month_utc().strftime("%Y-%m-%d %H:%M:%S")
 
     today_pts = sum(
-        int(t.get("points_delta", 0)) for t in txs
-        if t.get("created_at", "") >= day_start
+        int(t.get("points_delta", 0) or 0) for t in txs
+        if _norm_ts(t.get("created_at", "")) >= day_start
     )
     week_pts = sum(
-        int(t.get("points_delta", 0)) for t in txs
-        if t.get("created_at", "") >= week_start
+        int(t.get("points_delta", 0) or 0) for t in txs
+        if _norm_ts(t.get("created_at", "")) >= week_start
     )
     month_pts = sum(
-        int(t.get("points_delta", 0)) for t in txs
-        if t.get("created_at", "") >= month_start
+        int(t.get("points_delta", 0) or 0) for t in txs
+        if _norm_ts(t.get("created_at", "")) >= month_start
     )
 
     unique_devices = len({
@@ -132,6 +136,26 @@ def get_employee_stats(employee_id: str) -> dict:
         if s.get("point_decision") == "duplicate_device"
     ])
 
+    event_points = []
+    event_map = {e.get("event_id"): e for e in get_all_events()}
+    for event_id, event in event_map.items():
+        start_ts = _norm_ts(event.get("started_at") or event.get("start_at") or "")
+        if not start_ts:
+            continue
+        ev_points = sum(
+            int(t.get("points_delta", 0) or 0)
+            for t in txs
+            if t.get("event_id") == event_id and _norm_ts(t.get("created_at", "")) >= start_ts
+        )
+        if ev_points != 0:
+            event_points.append({
+                "event_id": event_id,
+                "event_name": event.get("event_name") or event_id,
+                "points": ev_points,
+            })
+
+    event_points.sort(key=lambda x: (-x["points"], x["event_name"]))
+
     return {
         "total_points": total_points,
         "today_points": today_pts,
@@ -140,6 +164,7 @@ def get_employee_stats(employee_id: str) -> dict:
         "unique_devices": unique_devices,
         "duplicate_scans": duplicate_scans,
         "total_scans": len(scans),
+        "event_points": event_points,
     }
 
 
@@ -154,6 +179,8 @@ def _log(sheets, action, entity_type, entity_id, message, level="INFO"):
         generate_log_id(seq), now_str(), level, action,
         entity_type, entity_id, message
     ])
+
+
 def update_last_active(telegram_user_id: str):
     sheets = get_sheets()
     row_idx = sheets.find_row_index(SHEET_EMPLOYEES, "telegram_user_id", str(telegram_user_id))

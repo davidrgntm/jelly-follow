@@ -1,21 +1,20 @@
 """
 Registration flow handler.
 Steps: /start → language → phone → name → country → done
-Admin/GA users are not forced into employee registration.
+Admin users also get direct access to Admin panel.
 """
 import logging
 from aiogram import Router, F
-from aiogram.types import Message, CallbackQuery
+from aiogram.types import Message, CallbackQuery, ReplyKeyboardMarkup, KeyboardButton
 from aiogram.fsm.context import FSMContext
 from aiogram.fsm.state import State, StatesGroup
 
 from app.bot.texts.translations import t
 from app.bot.keyboards.main_keyboards import (
     lang_select_keyboard, phone_keyboard, country_keyboard, main_menu_keyboard,
+    ADMIN_PANEL_TEXT,
 )
-from app.services.employees_service import (
-    register_employee, get_employee_by_telegram_id,
-)
+from app.services.employees_service import register_employee
 from app.services.admins_service import is_admin
 from app.services.qr_service import generate_employee_qr
 from app.utils.validators import normalize_phone
@@ -31,22 +30,32 @@ class RegStates(StatesGroup):
     choosing_country = State()
 
 
+def _admin_only_keyboard() -> ReplyKeyboardMarkup:
+    return ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text=ADMIN_PANEL_TEXT)]],
+        resize_keyboard=True,
+    )
+
+
 @router.message(F.text == "/start")
 async def cmd_start(message: Message, state: FSMContext, employee: dict, lang: str):
     await state.clear()
-
     admin_mode = is_admin(message.from_user.id)
 
     if employee and employee.get("status") == "active":
         text = t("reg.already", lang)
         if admin_mode:
-            text += "\n\n👑 Admin panel uchun /admin yuboring."
-        await message.answer(text, reply_markup=main_menu_keyboard(lang))
+            text += "\n\n👑 Siz adminsiz. Pastdagi tugmadan admin panelni oching."
+        await message.answer(
+            text,
+            reply_markup=main_menu_keyboard(lang, is_admin=admin_mode),
+        )
         return
 
     if admin_mode:
         await message.answer(
-            "👑 Siz admin/GA sifatida tanilgansiz.\n\nAdmin panelni ochish uchun /admin yuboring.",
+            "👑 Siz admin/GA sifatida tanilgansiz.\n\nPastdagi tugma orqali admin panelni oching.",
+            reply_markup=_admin_only_keyboard(),
         )
         return
 
@@ -140,7 +149,7 @@ async def cb_set_country(cb: CallbackQuery, state: FSMContext):
             name=emp["full_name"],
             code=emp["employee_code"],
         ),
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=main_menu_keyboard(lang, is_admin=is_admin(cb.from_user.id)),
         parse_mode="HTML",
     )
     await cb.answer()

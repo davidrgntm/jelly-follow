@@ -4,9 +4,12 @@ Keyboards for Telegram bot.
 from aiogram.types import (
     ReplyKeyboardMarkup, KeyboardButton,
     InlineKeyboardMarkup, InlineKeyboardButton,
+    ReplyKeyboardRemove,
 )
 from aiogram.utils.keyboard import ReplyKeyboardBuilder, InlineKeyboardBuilder
 from app.bot.texts.translations import t
+
+ADMIN_PANEL_TEXT = "👑 Admin panel"
 
 
 def lang_select_keyboard() -> InlineKeyboardMarkup:
@@ -39,7 +42,7 @@ def country_keyboard(lang: str) -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def main_menu_keyboard(lang: str) -> ReplyKeyboardMarkup:
+def main_menu_keyboard(lang: str, is_admin: bool = False) -> ReplyKeyboardMarkup:
     builder = ReplyKeyboardBuilder()
     buttons = [
         t("menu.profile", lang),
@@ -53,7 +56,11 @@ def main_menu_keyboard(lang: str) -> ReplyKeyboardMarkup:
     ]
     for b in buttons:
         builder.button(text=b)
-    builder.adjust(2)
+    if is_admin:
+        builder.button(text=ADMIN_PANEL_TEXT)
+        builder.adjust(2, 2, 2, 2, 1)
+    else:
+        builder.adjust(2)
     return builder.as_markup(resize_keyboard=True)
 
 
@@ -79,6 +86,5 @@ def back_keyboard(lang: str) -> ReplyKeyboardMarkup:
     return builder.as_markup(resize_keyboard=True, one_time_keyboard=True)
 
 
-def remove_keyboard() -> ReplyKeyboardMarkup:
-    from aiogram.types import ReplyKeyboardRemove
+def remove_keyboard() -> ReplyKeyboardRemove:
     return ReplyKeyboardRemove()

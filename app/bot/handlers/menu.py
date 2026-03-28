@@ -12,6 +12,7 @@ from app.bot.keyboards.main_keyboards import (
     qr_resend_keyboard,
     event_participate_keyboard,
 )
+from app.services.admins_service import is_admin
 from app.services.employees_service import (
     get_employee_stats,
     update_employee_language,
@@ -33,32 +34,30 @@ router = Router()
 def _normalize_text(value: str) -> str:
     if not value:
         return ""
-    return (
-        value.strip()
-        .lower()
-        .replace("\ufe0f", "")
-        .replace("  ", " ")
-    )
+    return value.strip().lower().replace("\ufe0f", "")
 
 
 def _all_variants_for_key(key: str) -> list[str]:
     entry = TRANSLATIONS.get(key, {})
-    variants = []
-    for value in entry.values():
-        if isinstance(value, str) and value.strip():
-            variants.append(_normalize_text(value))
-    return list(set(variants))
+    values = []
+    for v in entry.values():
+        if isinstance(v, str) and v.strip():
+            values.append(_normalize_text(v))
+    return list(set(values))
 
 
 def _menu_matcher(tx: str, lang_keys: list[str]) -> bool:
     normalized = _normalize_text(tx)
     if not normalized:
         return False
-
     for key in lang_keys:
         if normalized in _all_variants_for_key(key):
             return True
     return False
+
+
+def _menu_markup(lang: str, user_id: int):
+    return main_menu_keyboard(lang, is_admin=is_admin(user_id))
 
 
 @router.message(F.text == "/menu")
@@ -70,7 +69,7 @@ async def cmd_menu(message: Message, employee: dict, lang: str):
     update_last_active(message.from_user.id)
     await message.answer(
         t("menu.main", lang),
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=_menu_markup(lang, message.from_user.id),
     )
 
 
@@ -93,7 +92,7 @@ async def menu_profile(message: Message, employee: dict, lang: str):
             points=points,
         ),
         parse_mode="HTML",
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=_menu_markup(lang, message.from_user.id),
     )
 
 
@@ -152,7 +151,7 @@ async def menu_link(message: Message, employee: dict, lang: str):
     await message.answer(
         f"🔗 <b>{link}</b>",
         parse_mode="HTML",
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=_menu_markup(lang, message.from_user.id),
     )
 
 
@@ -167,8 +166,8 @@ async def menu_stats(message: Message, employee: dict, lang: str):
 
     event_lines = ""
     if stats.get("event_points"):
-        event_lines = "\n\n🏁 Eventlar:\n" + "\n".join(
-            f"• {row['event_id']}: <b>{row['points']}</b>"
+        event_lines = "\n\n🏁 Event ballari:\n" + "\n".join(
+            f"• {row['event_name']}: <b>{row['points']}</b>"
             for row in stats["event_points"][:5]
         )
 
@@ -182,7 +181,7 @@ async def menu_stats(message: Message, employee: dict, lang: str):
             duplicate=stats["duplicate_scans"],
         ) + event_lines,
         parse_mode="HTML",
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=_menu_markup(lang, message.from_user.id),
     )
 
 
@@ -201,7 +200,7 @@ async def menu_events(message: Message, employee: dict, lang: str):
     if not events:
         await message.answer(
             t("events.list_empty", lang),
-            reply_markup=main_menu_keyboard(lang),
+            reply_markup=_menu_markup(lang, message.from_user.id),
         )
         return
 
@@ -280,7 +279,7 @@ async def menu_rating(message: Message, employee: dict, lang: str):
     if not lb:
         await message.answer(
             t("rating.empty", lang),
-            reply_markup=main_menu_keyboard(lang),
+            reply_markup=_menu_markup(lang, message.from_user.id),
         )
         return
 
@@ -314,7 +313,7 @@ async def menu_rating(message: Message, employee: dict, lang: str):
     await message.answer(
         text,
         parse_mode="HTML",
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=_menu_markup(lang, message.from_user.id),
     )
 
 
@@ -336,7 +335,7 @@ async def cb_change_lang(cb: CallbackQuery, employee: dict, lang: str):
     await cb.message.edit_reply_markup(reply_markup=None)
     await cb.message.answer(
         t("generic.lang_changed", new_lang),
-        reply_markup=main_menu_keyboard(new_lang),
+        reply_markup=main_menu_keyboard(new_lang, is_admin=is_admin(cb.from_user.id)),
     )
     await cb.answer()
 
@@ -346,5 +345,5 @@ async def menu_help(message: Message, employee: dict, lang: str):
     await message.answer(
         t("help.text", lang),
         parse_mode="HTML",
-        reply_markup=main_menu_keyboard(lang),
+        reply_markup=_menu_markup(lang, message.from_user.id),
     )
