@@ -154,3 +154,8 @@ def _log(sheets, action, entity_type, entity_id, message, level="INFO"):
         generate_log_id(seq), now_str(), level, action,
         entity_type, entity_id, message
     ])
+def update_last_active(telegram_user_id: str):
+    sheets = get_sheets()
+    row_idx = sheets.find_row_index(SHEET_EMPLOYEES, "telegram_user_id", str(telegram_user_id))
+    if row_idx:
+        sheets.update_row(SHEET_EMPLOYEES, row_idx, {"last_active_at": now_str()})
