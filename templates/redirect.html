@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Instagram ochilmoqda...</title>
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);min-height:100vh;display:flex;align-items:center;justify-content:center;color:#fff;text-align:center;padding:20px}
+    .card{background:rgba(255,255,255,.15);backdrop-filter:blur(10px);border-radius:20px;padding:40px 30px;max-width:360px;width:100%}
+    .logo{font-size:60px;margin-bottom:16px}
+    h1{font-size:22px;font-weight:700;margin-bottom:8px}
+    p{font-size:14px;opacity:.85;margin-bottom:24px}
+    .spinner{width:40px;height:40px;border:3px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .8s linear infinite;margin:0 auto 20px}
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .btn{display:inline-block;background:#fff;color:#833ab4;padding:12px 28px;border-radius:30px;font-weight:700;font-size:15px;text-decoration:none;margin-top:10px;transition:opacity .2s}
+    .btn:active{opacity:.8}
+    #status{font-size:12px;opacity:.7;margin-top:16px;min-height:18px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">📸</div>
+    <h1>Instagram ochilmoqda...</h1>
+    <p>Iltimos kuting, siz yo'naltirilmoqdasiz.</p>
+    <div class="spinner" id="spinner"></div>
+    <a href="{{ instagram_web_link }}" class="btn" id="fallbackBtn" style="display:none">Instagram'ni ochish</a>
+    <div id="status"></div>
+  </div>
+  <script>
+    const C={
+      employeeId:"{{ employee_id }}",employeeCode:"{{ employee_code }}",
+      eventId:"{{ event_id }}",qrId:"{{ qr_id }}",countryCode:"{{ country_code }}",
+      ipAddress:"{{ ip_address }}",forwardedIp:"{{ forwarded_ip }}",
+      userAgent:"{{ user_agent }}",referer:"{{ referer }}",
+      acceptLanguage:"{{ accept_language }}",requestPath:"{{ request_path }}",
+      queryString:"{{ query_string }}",
+      instagramAppLink:"{{ instagram_app_link }}",instagramWebLink:"{{ instagram_web_link }}",
+      apiBase:"{{ api_base }}",preScanId:"{{ pre_scan_id }}"
+    };
+    function getDeviceInfo(){
+      const ua=navigator.userAgent,p=navigator.platform||"";
+      let os="Unknown";
+      if(/Windows/.test(ua))os="Windows";else if(/Mac OS X/.test(ua))os="MacOS";
+      else if(/Android/.test(ua))os="Android";else if(/iPhone|iPad|iPod/.test(ua))os="iOS";
+      else if(/Linux/.test(ua))os="Linux";
+      let browser="Unknown";
+      if(/CriOS|Chrome/.test(ua)&&!/Edg/.test(ua))browser="Chrome";
+      else if(/Safari/.test(ua)&&!/Chrome/.test(ua))browser="Safari";
+      else if(/Firefox|FxiOS/.test(ua))browser="Firefox";
+      else if(/Edg/.test(ua))browser="Edge";
+      let dtype="desktop";
+      if(/Mobi|Android|iPhone|iPad/.test(ua))dtype="mobile";
+      else if(/Tablet|iPad/.test(ua))dtype="tablet";
+      let fp=[os,browser,p,screen.width+"x"+screen.height,
+              Intl.DateTimeFormat().resolvedOptions().timeZone,
+              navigator.language].join("|");
+      let hash=0;for(let i=0;i<fp.length;i++){hash=((hash<<5)-hash)+fp.charCodeAt(i);hash|=0}
+      return{
+        fingerprint_id:"fp-"+Math.abs(hash).toString(36),
+        os_name:os,browser_name:browser,platform:p,device_type:dtype,
+        screen_width:screen.width,screen_height:screen.height,
+        viewport_width:window.innerWidth,viewport_height:window.innerHeight,
+        timezone:Intl.DateTimeFormat().resolvedOptions().timeZone
+      }
+    }
+    async function sendLog(extra){
+      const d=getDeviceInfo();
+      const body={
+        employee_id:C.employeeId,employee_code:C.employeeCode,
+        event_id:C.eventId,qr_id:C.qrId,country_code:C.countryCode,
+        ip_address:C.ipAddress,forwarded_ip:C.forwardedIp,
+        user_agent:C.userAgent,referer:C.referer,
+        accept_language:C.acceptLanguage,request_path:C.requestPath,
+        query_string:C.queryString,instagram_target:C.instagramWebLink,
+        pre_scan_id:C.preScanId,...d,...extra
+      };
+      try{
+        await fetch(C.apiBase+"/api/tracking/client-log",{
+          method:"POST",headers:{"Content-Type":"application/json"},
+          body:JSON.stringify(body)
+        });
+      }catch(e){console.error("Log failed",e)}
+    }
+    function tryDeepLink(){
+      return new Promise(r=>{
+        let opened=false;
+        const link=C.instagramAppLink;
+        if(!link){r(false);return}
+        const start=Date.now();
+        window.location.href=link;
+        setTimeout(()=>{
+          if(document.hidden||Date.now()-start>2500)opened=true;
+          r(opened);
+        },2000);
+      });
+    }
+    async function main(){
+      const st=document.getElementById("status");
+      st.textContent="Ma'lumotlar yig'ilmoqda...";
+      let deepLinked=false;
+      try{
+        deepLinked=await tryDeepLink();
+        st.textContent=deepLinked?"Instagram ochildi!":"Web versiya ochilmoqda...";
+      }catch(e){st.textContent="Web versiya ochilmoqda..."}
+      await sendLog({deep_link_attempted:true,fallback_used:!deepLinked});
+      if(!deepLinked){
+        document.getElementById("spinner").style.display="none";
+        document.getElementById("fallbackBtn").style.display="inline-block";
+        setTimeout(()=>{window.location.href=C.instagramWebLink},1500);
+      }
+    }
+    main();
+  </script>
+</body>
+</html>

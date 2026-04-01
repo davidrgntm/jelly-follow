@@ -1,0 +1,26 @@
+# Secrets — NEVER commit
+.env
+credentials.json
+*.json
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+venv/
+.venv/
+*.egg-info/
+dist/
+build/
+
+# Generated files
+static/qr/*.png
+
+# Logs
+*.log
+logs/
+
+# IDE
+.vscode/
+.idea/
+*.swp
