@@ -89,6 +89,7 @@ class ClientLogPayload(BaseModel):
     request_path: str = ""
     query_string: str = ""
     instagram_target: str = ""
+    client_device_id: str = ""
     fingerprint_id: str = ""
     device_type: str = ""
     os_name: str = ""
@@ -119,7 +120,8 @@ async def client_log(payload: ClientLogPayload):
             forwarded_ip=payload.forwarded_ip, user_agent=payload.user_agent,
             referer=payload.referer, accept_language=payload.accept_language,
             request_path=payload.request_path, query_string=payload.query_string,
-            instagram_target=payload.instagram_target, fingerprint_id=payload.fingerprint_id,
+            instagram_target=payload.instagram_target, client_device_id=payload.client_device_id,
+            fingerprint_id=payload.fingerprint_id,
             device_type=payload.device_type, os_name=payload.os_name,
             browser_name=payload.browser_name, platform=payload.platform,
             screen_width=payload.screen_width, screen_height=payload.screen_height,
