@@ -282,6 +282,14 @@
         return C.instagramWebLink;
       }
 
+      function getClientLogUrl(){
+        try{
+          return new URL("/api/tracking/client-log", window.location.origin).toString();
+        }catch(e){
+          return (C && C.apiBase ? String(C.apiBase).replace(/\/$/, "") : "") + "/api/tracking/client-log";
+        }
+      }
+
       function sendLogFast(extra){
         if(!C) return;
 
@@ -305,23 +313,30 @@
           ...extra
         };
 
-        const url = C.apiBase + "/api/tracking/client-log";
+        const url = getClientLogUrl();
         const json = JSON.stringify(body);
 
         try{
           if(navigator.sendBeacon){
             const blob = new Blob([json], { type: "application/json" });
             const ok = navigator.sendBeacon(url, blob);
-            if(ok) return;
+            if(ok) return true;
           }
         }catch(e){}
 
-        fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: json,
-          keepalive: true
-        }).catch(() => {});
+        try{
+          fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: json,
+            keepalive: true,
+            credentials: "same-origin",
+            mode: "same-origin"
+          }).catch(() => {});
+          return true;
+        }catch(e){
+          return false;
+        }
       }
 
       function markAppOpened(){
@@ -436,7 +451,7 @@
           }catch(e){
             openWebFallback("deeplink_error");
           }
-        }, 100);
+        }, 180);
       }
 
       main();
