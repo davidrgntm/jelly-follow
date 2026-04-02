@@ -39,7 +39,7 @@ def create_server_pre_log(employee_id, employee_code, country_code, event_id,
 def process_scan(employee_id, employee_code, country_code, event_id, qr_id,
                  ip_address, forwarded_ip, user_agent, referer, accept_language,
                  request_path, query_string, instagram_target,
-                 fingerprint_id="", device_type="", os_name="", browser_name="",
+                 client_device_id="", fingerprint_id="", device_type="", os_name="", browser_name="",
                  platform="", screen_width=0, screen_height=0, viewport_width=0,
                  viewport_height=0, timezone="", deep_link_attempted=False,
                  fallback_used=False, pre_scan_id=""):
@@ -47,9 +47,15 @@ def process_scan(employee_id, employee_code, country_code, event_id, qr_id,
 
     suspicious = is_suspicious_ua(user_agent)
     device_key = compute_device_key(
-        fingerprint_id=fingerprint_id, os_name=os_name, browser_name=browser_name,
-        platform=platform, screen_width=screen_width, screen_height=screen_height,
-        timezone=timezone, user_agent=user_agent,
+        client_device_id=client_device_id,
+        fingerprint_id=fingerprint_id,
+        os_name=os_name,
+        browser_name=browser_name,
+        platform=platform,
+        screen_width=screen_width,
+        screen_height=screen_height,
+        timezone=timezone,
+        user_agent=user_agent,
     )
 
     abuse = check_abuse(ip_address, device_key)
