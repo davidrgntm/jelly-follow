@@ -94,9 +94,9 @@ def _format_event_rewards(rewards, lang: str) -> str:
             continue
         seen.add(key)
         place = reward.get("place_number", "")
-        title = (reward.get("reward_title") or "").strip()
-        amount = (reward.get("reward_amount") or "").strip()
-        currency = (reward.get("currency_code") or "").strip()
+        title = (str(reward.get("reward_title") or "")).strip()
+        amount = (str(reward.get("reward_amount") or "")).strip()
+        currency = (str(reward.get("currency_code") or "")).strip()
         parts = []
         if title and title.lower() not in {f"{place}-place", f"{place}-o'rin", f"{place}-orin"}:
             parts.append(title)
@@ -116,8 +116,8 @@ def _render_event_text(ev: dict, lang: str) -> str:
     rules = (ev.get("rules_text") or "").strip()
     my_status = ev.get("my_participation", "")
     rewards_text = _format_event_rewards(ev.get("rewards", []), lang)
-    pool_amount = (ev.get("reward_pool_amount") or "").strip()
-    pool_currency = (ev.get("reward_pool_currency") or "").strip()
+    pool_amount = (str(ev.get("reward_pool_amount") or "")).strip()
+    pool_currency = (str(ev.get("reward_pool_currency") or "")).strip()
 
     lines = [f"🏆 <b>{title}</b>", f"🆔 <code>{code}</code>"]
     if description:
