@@ -87,6 +87,20 @@ def process_scan(employee_id, employee_code, country_code, event_id, qr_id,
     if pre_scan_id:
         row_idx = sheets.find_row_index(SHEET_SCANS_RAW, "scan_id", pre_scan_id)
         if row_idx:
+            # Idempotency: agar bu scan allaqachon final qarorga ega bo'lsa,
+            # ikkinchi sendLogFast chaqiruvi point_decision ni overwrite qilmasin.
+            FINAL_DECISIONS = {"first_unique_device", "suspicious", "duplicate_device"}
+            existing = sheets.find_record(SHEET_SCANS_RAW, "scan_id", pre_scan_id)
+            existing_decision = (existing or {}).get("point_decision", "")
+            if existing_decision in FINAL_DECISIONS:
+                # Ball allaqachon qayta ishlanganRed — qarorni saqlab qolamiz
+                point_decision = existing_decision
+                point_tx_id = (existing or {}).get("point_transaction_id", point_tx_id)
+                logger.info(
+                    "process_scan: pre_scan_id=%s already has decision=%s — skipping re-award",
+                    pre_scan_id, existing_decision
+                )
+
             sheets.update_row(SHEET_SCANS_RAW, row_idx, {
                 "device_key": device_key, "fingerprint_id": fingerprint_id,
                 "device_type": device_type, "os_name": os_name,
@@ -99,6 +113,8 @@ def process_scan(employee_id, employee_code, country_code, event_id, qr_id,
                 "scan_status": scan_status, "point_decision": point_decision,
                 "point_transaction_id": point_tx_id,
             })
+            _log(sheets, "scan_updated", "scan", pre_scan_id,
+                 f"Client log: {employee_code}, decision={point_decision}")
             return {"scan_id": pre_scan_id, "device_key": device_key,
                     "point_decision": point_decision, "point_tx_id": point_tx_id,
                     "scan_status": scan_status}
