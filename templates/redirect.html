@@ -343,6 +343,11 @@
         if(appOpened) return;
         appOpened = true;
         if(fallbackTimer) clearTimeout(fallbackTimer);
+        sendLogFast({
+          deep_link_attempted: true,
+          fallback_used: false,
+          open_method: "app_opened"
+        });
         setStatus("Instagram открыт!");
       }
 
@@ -408,14 +413,11 @@
 
         setupListeners();
 
-        sendLogFast({
-          deep_link_attempted: false,
-          fallback_used: false,
-          env_is_ios: env.isIOS,
-          env_is_android: env.isAndroid,
-          env_is_desktop: env.isDesktop,
-          env_is_inapp: env.isInAppBrowser
-        });
+        // sendLogFast ni faqat final action paytida yuboramiz (openWebFallback yoki button click).
+        // Dastlabki "page opened" log server tomonida create_server_pre_log orqali allaqachon yozilgan.
+        // Shu sababli bu yerda qo'shimcha sendLogFast chaqirish KERAK EMAS —
+        // ikki marta chaqirish process_scan ni overwrite qilib point_decision ni "duplicate_device"
+        // ga qaytarib qo'yadi.
 
         if(env.isDesktop){
           setStatus("Открываем веб-версию...");
