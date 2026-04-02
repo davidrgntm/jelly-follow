@@ -98,15 +98,25 @@ def hydrate_event(event, employee_id=""):
 
 
 def get_active_events():
+    cached = events_cache.get("active_events")
+    if cached is not None:
+        return cached
     sheets = get_sheets()
     events = [e for e in sheets.get_all_records(SHEET_EVENTS) if e.get("status") == "active"]
-    return [hydrate_event(e) for e in events]
+    result = [hydrate_event(e) for e in events]
+    events_cache.set("active_events", result)
+    return result
 
 
 def get_all_events():
+    cached = events_cache.get("all_events")
+    if cached is not None:
+        return cached
     sheets = get_sheets()
     events = sheets.get_all_records(SHEET_EVENTS)
-    return [hydrate_event(e) for e in events]
+    result = [hydrate_event(e) for e in events]
+    events_cache.set("all_events", result)
+    return result
 
 
 def set_event_status(event_id, status):
