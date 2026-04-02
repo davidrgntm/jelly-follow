@@ -22,12 +22,12 @@
       backdrop-filter:blur(10px);
       border-radius:20px;
       padding:40px 30px;
-      max-width:360px;
+      max-width:380px;
       width:100%
     }
     .logo{font-size:60px;margin-bottom:16px}
     h1{font-size:22px;font-weight:700;margin-bottom:8px}
-    p{font-size:14px;opacity:.85;margin-bottom:24px}
+    p{font-size:14px;opacity:.9;margin-bottom:18px;line-height:1.4}
     .spinner{
       width:40px;
       height:40px;
@@ -40,28 +40,45 @@
     @keyframes spin{to{transform:rotate(360deg)}}
     .btn{
       display:inline-block;
+      width:100%;
       background:#fff;
       color:#833ab4;
-      padding:12px 28px;
+      padding:13px 20px;
       border-radius:30px;
       font-weight:700;
       font-size:15px;
       text-decoration:none;
       margin-top:10px;
-      transition:opacity .2s
+      transition:opacity .2s;
+      border:none;
+      cursor:pointer
     }
-    .btn:active{opacity:.8}
-    #status{font-size:12px;opacity:.75;margin-top:16px;min-height:18px}
+    .btn:active{opacity:.85}
+    .btn.secondary{
+      background:rgba(255,255,255,.18);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.25)
+    }
+    #status{font-size:12px;opacity:.8;margin-top:16px;min-height:18px}
+    #hint{font-size:12px;opacity:.75;margin-top:10px;min-height:18px;line-height:1.35}
+    .actions{display:none;margin-top:4px}
   </style>
 </head>
 <body>
   <div class="card">
     <div class="logo">📸</div>
     <h1>Открываем Instagram...</h1>
-    <p>Пожалуйста, подождите. Выполняется перенаправление.</p>
+    <p id="desc">Пожалуйста, подождите. Выполняется перенаправление.</p>
+
     <div class="spinner" id="spinner"></div>
-    <a href="{{ instagram_web_link }}" class="btn" id="fallbackBtn" style="display:none">Открыть Instagram</a>
+
+    <div class="actions" id="actions">
+      <button class="btn" id="appBtn" type="button">Открыть в приложении</button>
+      <a class="btn secondary" id="fallbackBtn" href="{{ instagram_web_link }}">Открыть веб-версию</a>
+    </div>
+
     <div id="status"></div>
+    <div id="hint"></div>
   </div>
 
   <script>
@@ -85,8 +102,8 @@
     };
 
     let appOpened = false;
-    let fallbackTimer = null;
     let finalRedirectDone = false;
+    let fallbackTimer = null;
 
     function getCookie(name){
       const escaped = name.replace(/[.$?*|{}()\\[\\]\\\\/+^]/g, '\\$&');
@@ -135,21 +152,21 @@
       const p = navigator.platform || "";
 
       let os = "Unknown";
-      if (/Windows/.test(ua)) os = "Windows";
-      else if (/Mac OS X/.test(ua)) os = "MacOS";
-      else if (/Android/.test(ua)) os = "Android";
-      else if (/iPhone|iPad|iPod/.test(ua)) os = "iOS";
-      else if (/Linux/.test(ua)) os = "Linux";
+      if (/Windows/i.test(ua)) os = "Windows";
+      else if (/Mac OS X/i.test(ua)) os = "MacOS";
+      else if (/Android/i.test(ua)) os = "Android";
+      else if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+      else if (/Linux/i.test(ua)) os = "Linux";
 
       let browser = "Unknown";
-      if (/CriOS|Chrome/.test(ua) && !/Edg/.test(ua)) browser = "Chrome";
-      else if (/Safari/.test(ua) && !/Chrome/.test(ua)) browser = "Safari";
-      else if (/Firefox|FxiOS/.test(ua)) browser = "Firefox";
-      else if (/Edg/.test(ua)) browser = "Edge";
+      if (/CriOS|Chrome/i.test(ua) && !/Edg/i.test(ua)) browser = "Chrome";
+      else if (/Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua)) browser = "Safari";
+      else if (/Firefox|FxiOS/i.test(ua)) browser = "Firefox";
+      else if (/Edg/i.test(ua)) browser = "Edge";
 
       let dtype = "desktop";
-      if (/Tablet|iPad/.test(ua)) dtype = "tablet";
-      else if (/Mobi|Android|iPhone|iPad/.test(ua)) dtype = "mobile";
+      if (/Tablet|iPad/i.test(ua)) dtype = "tablet";
+      else if (/Mobi|Android|iPhone|iPad/i.test(ua)) dtype = "mobile";
 
       const fp = [
         os,
@@ -179,6 +196,75 @@
         viewport_height: window.innerHeight,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
       };
+    }
+
+    function detectEnv(){
+      const ua = navigator.userAgent || "";
+      const low = ua.toLowerCase();
+
+      const isIOS = /iphone|ipad|ipod/.test(low);
+      const isAndroid = /android/.test(low);
+      const isDesktop = !isIOS && !isAndroid;
+
+      const isTelegram = /telegram/.test(low);
+      const isInstagramInApp = /instagram/.test(low);
+      const isFacebookInApp = /fban|fbav|facebook/.test(low);
+      const isLine = / line\//.test(low);
+      const isTikTok = /musical_ly|bytedance|tiktok/.test(low);
+
+      const isAndroidWV = /; wv\)/.test(low) || /version\/[\d.]+.*chrome\/[\d.]+ mobile/.test(low) && /wv/.test(low);
+      const isIOSWV = isIOS && !/safari/.test(low);
+      const isInAppBrowser =
+        isTelegram ||
+        isInstagramInApp ||
+        isFacebookInApp ||
+        isLine ||
+        isTikTok ||
+        isAndroidWV ||
+        isIOSWV;
+
+      return {
+        isIOS,
+        isAndroid,
+        isDesktop,
+        isTelegram,
+        isInstagramInApp,
+        isFacebookInApp,
+        isInAppBrowser
+      };
+    }
+
+    function extractInstagramUsername(url){
+      try{
+        const u = new URL(url);
+        if(!/instagram\.com$/i.test(u.hostname) && !/www\.instagram\.com$/i.test(u.hostname)) return "";
+        const parts = u.pathname.split("/").filter(Boolean);
+        if(!parts.length) return "";
+        const first = parts[0].toLowerCase();
+        const blocked = ["p","reel","reels","stories","explore","accounts","direct","tv"];
+        if(blocked.includes(first)) return "";
+        return parts[0];
+      }catch(e){
+        return "";
+      }
+    }
+
+    function buildAppUrl(env){
+      const username = extractInstagramUsername(C.instagramWebLink);
+
+      if(env.isAndroid && username){
+        return "intent://instagram.com/_u/" + encodeURIComponent(username) + "/#Intent;package=com.instagram.android;scheme=https;end";
+      }
+
+      if(env.isIOS && username){
+        return "instagram://user?username=" + encodeURIComponent(username);
+      }
+
+      if(C.instagramAppLink && C.instagramAppLink.trim()){
+        return C.instagramAppLink.trim();
+      }
+
+      return C.instagramWebLink;
     }
 
     function sendLogFast(extra){
@@ -211,39 +297,37 @@
           const ok = navigator.sendBeacon(url, blob);
           if(ok) return;
         }
-      }catch(e){
-        console.error("Beacon failed", e);
-      }
+      }catch(e){}
 
       fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: json,
         keepalive: true
-      }).catch(e => console.error("Log failed", e));
+      }).catch(() => {});
     }
 
-    function showFallbackButton(){
+    function setStatus(text){
+      document.getElementById("status").textContent = text || "";
+    }
+
+    function setHint(text){
+      document.getElementById("hint").textContent = text || "";
+    }
+
+    function showActions(){
       document.getElementById("spinner").style.display = "none";
-      document.getElementById("fallbackBtn").style.display = "inline-block";
-    }
-
-    function openWebFallback(){
-      if(finalRedirectDone || appOpened) return;
-      finalRedirectDone = true;
-      showFallbackButton();
-      document.getElementById("status").textContent = "Открываем веб-версию...";
-      window.location.replace(C.instagramWebLink);
+      document.getElementById("actions").style.display = "block";
     }
 
     function markAppOpened(){
       if(appOpened) return;
       appOpened = true;
       if(fallbackTimer) clearTimeout(fallbackTimer);
-      document.getElementById("status").textContent = "Instagram открыт!";
+      setStatus("Instagram открыт!");
     }
 
-    function setupAppOpenListeners(){
+    function setupOpenListeners(){
       document.addEventListener("visibilitychange", () => {
         if(document.hidden) markAppOpened();
       });
@@ -259,45 +343,95 @@
       });
     }
 
-    function tryDeepLinkNow(){
-      if(!C.instagramAppLink){
-        openWebFallback();
-        return;
-      }
-
-      document.getElementById("status").textContent = "Открываем Instagram...";
-
-      fallbackTimer = setTimeout(() => {
-        openWebFallback();
-      }, 1600);
-
-      try{
-        window.location.href = C.instagramAppLink;
-      }catch(e){
-        openWebFallback();
-      }
-
-      setTimeout(() => {
-        if(!appOpened && !finalRedirectDone){
-          showFallbackButton();
-          document.getElementById("status").textContent = "Если приложение не открылось, откройте Instagram кнопкой ниже.";
-        }
-      }, 900);
+    function openWebFallback(reason){
+      if(finalRedirectDone || appOpened) return;
+      finalRedirectDone = true;
+      sendLogFast({
+        fallback_used: true,
+        fallback_reason: reason || "auto_fallback"
+      });
+      setStatus("Открываем веб-версию...");
+      window.location.replace(C.instagramWebLink);
     }
 
     function main(){
-      const st = document.getElementById("status");
-      st.textContent = "Собираем данные...";
+      const env = detectEnv();
+      const appUrl = buildAppUrl(env);
+      const appBtn = document.getElementById("appBtn");
+      const fallbackBtn = document.getElementById("fallbackBtn");
 
-      setupAppOpenListeners();
+      fallbackBtn.href = C.instagramWebLink;
+
+      appBtn.addEventListener("click", () => {
+        sendLogFast({
+          deep_link_attempted: true,
+          fallback_used: false,
+          open_method: "manual_button"
+        });
+        setStatus("Пробуем открыть приложение...");
+        setTimeout(() => {
+          window.location.href = appUrl;
+        }, 30);
+      });
+
+      fallbackBtn.addEventListener("click", () => {
+        sendLogFast({
+          fallback_used: true,
+          open_method: "manual_web_button"
+        });
+      });
+
+      setupOpenListeners();
+
+      sendLogFast({
+        deep_link_attempted: false,
+        fallback_used: false,
+        env_is_ios: env.isIOS,
+        env_is_android: env.isAndroid,
+        env_is_desktop: env.isDesktop,
+        env_is_inapp: env.isInAppBrowser
+      });
+
+      if(env.isDesktop){
+        showActions();
+        setStatus("Открываем веб-версию...");
+        setHint("На компьютере откроется веб-версия Instagram.");
+        setTimeout(() => openWebFallback("desktop"), 250);
+        return;
+      }
+
+      if(env.isInAppBrowser){
+        showActions();
+        setStatus("Встроенный браузер может блокировать автоматическое открытие приложения.");
+        setHint("Нажмите «Открыть в приложении». Если приложение не откроется, используйте веб-версию.");
+        return;
+      }
+
+      setStatus("Открываем Instagram...");
+
+      fallbackTimer = setTimeout(() => {
+        openWebFallback("auto_timeout");
+      }, 1800);
+
+      setTimeout(() => {
+        showActions();
+        if(!appOpened && !finalRedirectDone){
+          setHint("Если приложение не открылось автоматически, нажмите кнопку ниже.");
+        }
+      }, 900);
 
       sendLogFast({
         deep_link_attempted: true,
-        fallback_used: false
+        fallback_used: false,
+        open_method: "auto_attempt"
       });
 
       setTimeout(() => {
-        tryDeepLinkNow();
+        try{
+          window.location.href = appUrl;
+        }catch(e){
+          openWebFallback("deeplink_error");
+        }
       }, 100);
     }
 
