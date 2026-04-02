@@ -2,9 +2,14 @@
 import hashlib
 import re
 
-def compute_device_key(fingerprint_id=None, os_name=None, browser_name=None,
+
+def compute_device_key(client_device_id=None, fingerprint_id=None, os_name=None, browser_name=None,
                        platform=None, screen_width=None, screen_height=None,
                        timezone=None, user_agent=None):
+    client_device_id = (client_device_id or "").strip().lower()
+    if client_device_id:
+        return hashlib.sha256(("cdid|" + client_device_id).encode("utf-8")).hexdigest()
+
     parts = [
         (fingerprint_id or "").strip().lower(),
         (os_name or "").strip().lower(),
@@ -18,10 +23,12 @@ def compute_device_key(fingerprint_id=None, os_name=None, browser_name=None,
     raw = "|".join(parts)
     return hashlib.sha256(raw.encode("utf-8")).hexdigest()
 
+
 def _normalize_ua(ua):
     ua = re.sub(r"/[\d.]+", "", ua)
     ua = re.sub(r"\(.*?\)", "", ua)
     return ua.strip().lower()[:200]
+
 
 def is_suspicious_ua(user_agent):
     if not user_agent:
