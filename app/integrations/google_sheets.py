@@ -1,24 +1,17 @@
 """
-Google Sheets integration layer.
-All sheet operations go through this module.
-Includes retry logic and cache-aware helpers.
+SQLite-backed data layer that preserves the old Google Sheets API.
+This lets the rest of the project keep working without major rewrites.
 """
 import asyncio
 import logging
-import time
+import os
+import sqlite3
+import threading
 from typing import Any, Optional
-from functools import wraps
 
-import gspread
-from google.oauth2.service_account import Credentials
 from app.config import settings
 
 logger = logging.getLogger(__name__)
-
-SCOPES = [
-    "https://www.googleapis.com/auth/spreadsheets",
-    "https://www.googleapis.com/auth/drive",
-]
 
 SHEET_META = "meta"
 SHEET_DICT = "dictionaries"
@@ -110,89 +103,184 @@ SHEET_HEADERS = {
 }
 
 
-def _retry(max_attempts=3, backoff=1.0):
-    def decorator(func):
-        @wraps(func)
-        def wrapper(*args, **kwargs):
-            last_err = None
-            for attempt in range(1, max_attempts + 1):
-                try:
-                    return func(*args, **kwargs)
-                except gspread.exceptions.APIError as e:
-                    last_err = e
-                    code = e.response.status_code if hasattr(e, "response") else 0
-                    if code in (429, 500, 503) and attempt < max_attempts:
-                        wait = backoff * (2 ** (attempt - 1))
-                        logger.warning("Sheets API %s attempt %d/%d, retry in %.1fs", code, attempt, max_attempts, wait)
-                        time.sleep(wait)
-                    else:
-                        raise
-                except Exception as e:
-                    last_err = e
-                    if attempt < max_attempts:
-                        time.sleep(backoff)
-                    else:
-                        raise
-            raise last_err
-        return wrapper
-    return decorator
+def _quote(name: str) -> str:
+    return '"' + str(name).replace('"', '""') + '"'
+
+
+class SQLiteWorksheet:
+    def __init__(self, client: "SheetsClient", name: str):
+        self.client = client
+        self.name = name
+
+    def row_values(self, row_index: int):
+        if row_index == 1:
+            return list(self.client.get_headers(self.name))
+        record = self.client.get_record_by_row_index(self.name, row_index)
+        if not record:
+            return []
+        return [record.get(h, "") for h in self.client.get_headers(self.name)]
+
+    def insert_row(self, row, index=1):
+        headers = self.client.get_headers(self.name)
+        if index == 1 and row:
+            self.client.ensure_headers(self.name, [str(x) for x in row])
+            return
+        self.client.append_row(self.name, row)
+
+    def freeze(self, rows=1):
+        return None
+
+    def update_cell(self, row_idx: int, col_idx: int, value: Any):
+        headers = self.client.get_headers(self.name)
+        if col_idx < 1:
+            return
+        while col_idx > len(headers):
+            self.client.add_column(self.name, f"col_{len(headers)+1}")
+            headers = self.client.get_headers(self.name)
+        col_name = headers[col_idx - 1]
+        if row_idx == 1:
+            self.client.rename_or_add_header(self.name, col_idx, str(value))
+            return
+        self.client.update_row(self.name, row_idx, {col_name: value})
+
+    def get_all_records(self):
+        return self.client.get_all_records(self.name)
+
+    def get_all_values(self):
+        headers = self.client.get_headers(self.name)
+        values = [headers]
+        for record in self.client.get_all_records(self.name):
+            values.append([record.get(h, "") for h in headers])
+        return values
+
+    def append_row(self, row, value_input_option="USER_ENTERED"):
+        self.client.append_row(self.name, row)
+
+    def clear(self):
+        self.client.clear_table(self.name)
+
+    def update(self, rows, value_input_option="USER_ENTERED"):
+        self.client.update_rows_from_matrix(self.name, rows)
+
+    def set_basic_filter(self):
+        return None
+
+    def find(self, value, in_column: Optional[int] = None):
+        return self.client.find_cell(self.name, value, in_column=in_column)
+
+
+class _FoundCell:
+    def __init__(self, row: int):
+        self.row = row
 
 
 class SheetsClient:
     _instance = None
-    _spreadsheet = None
-    _gc = None
+    _init_lock = threading.Lock()
 
     def __init__(self):
+        self.db_path = settings.SQLITE_PATH
+        os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
+        self._local = threading.local()
         self._sheet_cache = {}
+        self._ensure_schema()
 
     @classmethod
     def get_instance(cls):
-        if cls._instance is None:
-            cls._instance = cls()
+        with cls._init_lock:
+            if cls._instance is None:
+                cls._instance = cls()
         return cls._instance
 
-    def _connect(self):
-        if self._gc is None:
-            creds_data = settings.get_google_credentials()
-            creds = Credentials.from_service_account_info(creds_data, scopes=SCOPES)
-            self._gc = gspread.authorize(creds)
-            logger.info("Google Sheets connected")
+    def _conn(self):
+        conn = getattr(self._local, "conn", None)
+        if conn is None:
+            conn = sqlite3.connect(self.db_path, timeout=settings.SQLITE_TIMEOUT, check_same_thread=False)
+            conn.row_factory = sqlite3.Row
+            conn.execute("PRAGMA journal_mode=WAL")
+            conn.execute("PRAGMA synchronous=NORMAL")
+            conn.execute("PRAGMA temp_store=MEMORY")
+            conn.execute("PRAGMA foreign_keys=OFF")
+            self._local.conn = conn
+        return conn
 
-    def _get_spreadsheet(self):
-        self._connect()
-        if self._spreadsheet is None:
-            sid = settings.SPREADSHEET_ID
-            if sid:
-                self._spreadsheet = self._gc.open_by_key(sid)
-                logger.info("Opened spreadsheet by ID: %s", sid)
-            else:
-                try:
-                    self._spreadsheet = self._gc.open(settings.SPREADSHEET_NAME)
-                    logger.info("Opened spreadsheet: %s", settings.SPREADSHEET_NAME)
-                except gspread.SpreadsheetNotFound:
-                    self._spreadsheet = self._gc.create(settings.SPREADSHEET_NAME)
-                    logger.info("Created spreadsheet: %s", settings.SPREADSHEET_NAME)
-                    self._share_spreadsheet()
-        return self._spreadsheet
+    def _ensure_schema(self):
+        conn = sqlite3.connect(self.db_path, timeout=settings.SQLITE_TIMEOUT, check_same_thread=False)
+        try:
+            for table, headers in SHEET_HEADERS.items():
+                cols = ", ".join([f'{_quote(h)} TEXT' for h in headers])
+                conn.execute(f'CREATE TABLE IF NOT EXISTS {_quote(table)} (_rowid INTEGER PRIMARY KEY AUTOINCREMENT, {cols})')
+            self._ensure_indexes(conn)
+            conn.commit()
+        finally:
+            conn.close()
+        logger.info("SQLite connected: %s", self.db_path)
 
-    def _share_spreadsheet(self):
-        for email in settings.get_share_emails():
+    def _ensure_indexes(self, conn):
+        indexes = {
+            SHEET_EMPLOYEES: ["employee_id", "employee_code", "telegram_user_id", "country_code"],
+            SHEET_ADMINS: ["admin_id", "telegram_user_id"],
+            SHEET_EVENTS: ["event_id", "event_code", "status"],
+            SHEET_EVENT_COUNTRIES: ["event_id", "country_code"],
+            SHEET_EVENT_PARTICIPANTS: ["participant_id", "event_id", "employee_id", "country_code", "participant_status"],
+            SHEET_QR_CODES: ["qr_id", "employee_id", "employee_code", "event_id", "country_code", "is_active"],
+            SHEET_SCANS_RAW: ["scan_id", "employee_id", "employee_code", "event_id", "country_code", "qr_id", "device_key", "fingerprint_id", "point_decision", "scan_status"],
+            SHEET_DEVICE_REGISTRY: ["device_key", "fingerprint_id", "first_employee_id", "first_event_id", "first_country_code"],
+            SHEET_POINT_TRANSACTIONS: ["point_tx_id", "employee_id", "employee_code", "event_id", "country_code", "scan_id", "device_key", "reason_code"],
+            SHEET_SYSTEM_LOGS: ["log_id", "entity_type", "entity_id", "action", "level"],
+            SHEET_COUNTRIES: ["country_code", "is_active"],
+            SHEET_DICT: ["dict_type", "code", "is_active"],
+            SHEET_META: ["key"],
+        }
+        for table, cols in indexes.items():
+            for col in cols:
+                if col in SHEET_HEADERS.get(table, []):
+                    idx_name = f"idx_{table}_{col}"
+                    conn.execute(f'CREATE INDEX IF NOT EXISTS {_quote(idx_name)} ON {_quote(table)} ({_quote(col)})')
+
+    def get_headers(self, table):
+        conn = self._conn()
+        rows = conn.execute(f'PRAGMA table_info({_quote(table)})').fetchall()
+        headers = [r[1] for r in rows if r[1] != '_rowid']
+        if not headers and table in SHEET_HEADERS:
+            self.ensure_headers(table, SHEET_HEADERS[table])
+            return list(SHEET_HEADERS[table])
+        return headers
+
+    def ensure_headers(self, table, headers):
+        existing = set(self.get_headers(table))
+        for header in headers:
+            if header not in existing:
+                self.add_column(table, header)
+        return self.get_headers(table)
+
+    def add_column(self, table, col_name):
+        conn = self._conn()
+        headers = set(self.get_headers(table))
+        if col_name in headers:
+            return
+        conn.execute(f'ALTER TABLE {_quote(table)} ADD COLUMN {_quote(col_name)} TEXT')
+        conn.commit()
+
+    def rename_or_add_header(self, table, col_idx, new_name):
+        headers = self.get_headers(table)
+        if 1 <= col_idx <= len(headers):
+            old_name = headers[col_idx - 1]
+            if old_name == new_name:
+                return
+            conn = self._conn()
             try:
-                self._spreadsheet.share(email, perm_type="user", role="writer")
-                logger.info("Shared spreadsheet with: %s", email)
-            except Exception as e:
-                logger.warning("Failed to share with %s: %s", email, e)
+                conn.execute(f'ALTER TABLE {_quote(table)} RENAME COLUMN {_quote(old_name)} TO {_quote(new_name)}')
+                conn.commit()
+            except Exception:
+                self.add_column(table, new_name)
+        else:
+            self.add_column(table, new_name)
 
     def get_sheet(self, name):
         if name not in self._sheet_cache:
-            ss = self._get_spreadsheet()
-            try:
-                ws = ss.worksheet(name)
-            except gspread.WorksheetNotFound:
-                ws = ss.add_worksheet(title=name, rows=1000, cols=50)
-                logger.info("Created worksheet: %s", name)
-            self._sheet_cache[name] = ws
+            self.ensure_headers(name, SHEET_HEADERS.get(name, []))
+            self._sheet_cache[name] = SQLiteWorksheet(self, name)
         return self._sheet_cache[name]
 
     def invalidate_cache(self, name=None):
@@ -201,101 +289,137 @@ class SheetsClient:
         else:
             self._sheet_cache.clear()
 
-    @_retry(max_attempts=3, backoff=1.0)
+    def clear_table(self, table):
+        conn = self._conn()
+        conn.execute(f'DELETE FROM {_quote(table)}')
+        conn.commit()
+
+    def update_rows_from_matrix(self, table, rows):
+        headers = rows[0] if rows else self.get_headers(table)
+        self.ensure_headers(table, headers)
+        self.clear_table(table)
+        for row in rows[1:]:
+            if not any(str(cell).strip() for cell in row):
+                continue
+            self.append_row(table, row)
+
     def get_all_records(self, sheet_name):
-        ws = self.get_sheet(sheet_name)
-        try:
-            return ws.get_all_records()
-        except Exception as e:
-            logger.error("get_all_records(%s): %s", sheet_name, e)
-            try:
-                values = ws.get_all_values()
-            except Exception as inner_e:
-                logger.error("get_all_values(%s): %s", sheet_name, inner_e)
-                return []
+        headers = self.get_headers(sheet_name)
+        if not headers:
+            return []
+        conn = self._conn()
+        query = f'SELECT {", ".join(_quote(h) for h in headers)} FROM {_quote(sheet_name)} ORDER BY _rowid ASC'
+        rows = conn.execute(query).fetchall()
+        return [{h: ("" if row[h] is None else str(row[h])) for h in headers} for row in rows]
 
-            if not values:
-                return []
-
-            headers = SHEET_HEADERS.get(sheet_name) or values[0]
-            data_rows = values[1:] if len(values) > 1 else []
-            rows = []
-            for raw in data_rows:
-                if not any(str(cell).strip() for cell in raw):
-                    continue
-                record = {}
-                for idx, header in enumerate(headers):
-                    record[header] = raw[idx] if idx < len(raw) else ""
-                rows.append(record)
-            return rows
-
-    @_retry(max_attempts=3, backoff=1.0)
     def append_row(self, sheet_name, row):
-        ws = self.get_sheet(sheet_name)
-        ws.append_row(row, value_input_option="USER_ENTERED")
+        headers = self.get_headers(sheet_name)
+        if not headers:
+            self.ensure_headers(sheet_name, SHEET_HEADERS.get(sheet_name, []))
+            headers = self.get_headers(sheet_name)
+        values = list(row)
+        if len(values) < len(headers):
+            values += [""] * (len(headers) - len(values))
+        payload = {headers[i]: values[i] if i < len(values) else "" for i in range(len(headers))}
+        conn = self._conn()
+        cols_sql = ", ".join(_quote(h) for h in headers)
+        placeholders = ", ".join(["?"] * len(headers))
+        conn.execute(f'INSERT INTO {_quote(sheet_name)} ({cols_sql}) VALUES ({placeholders})', [payload[h] for h in headers])
+        conn.commit()
 
-
-    @_retry(max_attempts=3, backoff=1.0)
     def replace_records(self, sheet_name, records):
-        ws = self.get_sheet(sheet_name)
-        headers = SHEET_HEADERS[sheet_name]
-        rows = [headers]
+        self.clear_table(sheet_name)
+        headers = self.get_headers(sheet_name)
         for record in records:
-            rows.append([record.get(h, "") for h in headers])
-        ws.clear()
-        ws.update(rows, value_input_option="USER_ENTERED")
-        try:
-            ws.freeze(rows=1)
-        except Exception:
-            pass
+            row = [record.get(h, "") for h in headers]
+            self.append_row(sheet_name, row)
 
+    def get_record_by_row_index(self, sheet_name, row_idx):
+        if row_idx <= 1:
+            return None
+        headers = self.get_headers(sheet_name)
+        offset = row_idx - 2
+        conn = self._conn()
+        row = conn.execute(
+            f'SELECT _rowid, {", ".join(_quote(h) for h in headers)} FROM {_quote(sheet_name)} ORDER BY _rowid ASC LIMIT 1 OFFSET ?',
+            (offset,),
+        ).fetchone()
+        if not row:
+            return None
+        return {h: ("" if row[h] is None else str(row[h])) for h in headers}
 
-    @_retry(max_attempts=3, backoff=1.0)
     def find_row_index(self, sheet_name, col_name, value):
-        ws = self.get_sheet(sheet_name)
-        headers = ws.row_values(1)
-        if col_name not in headers:
+        if col_name not in self.get_headers(sheet_name):
             return None
-        col_idx = headers.index(col_name) + 1
-        try:
-            cell = ws.find(str(value), in_column=col_idx)
-            return cell.row if cell else None
-        except Exception:
+        conn = self._conn()
+        rows = conn.execute(
+            f'SELECT _rowid FROM {_quote(sheet_name)} WHERE COALESCE({_quote(col_name)}, "") = ? ORDER BY _rowid ASC LIMIT 1',
+            (str(value),),
+        ).fetchall()
+        if not rows:
             return None
+        target_rowid = rows[0][0]
+        ordinal = conn.execute(
+            f'SELECT COUNT(*) FROM {_quote(sheet_name)} WHERE _rowid <= ?', (target_rowid,)
+        ).fetchone()[0]
+        return ordinal + 1
 
-    @_retry(max_attempts=3, backoff=1.0)
     def update_row(self, sheet_name, row_idx, data):
-        ws = self.get_sheet(sheet_name)
-        headers = ws.row_values(1)
-        for col_name, val in data.items():
-            if col_name in headers:
-                col_idx = headers.index(col_name) + 1
-                ws.update_cell(row_idx, col_idx, val)
+        if row_idx <= 1 or not data:
+            return
+        headers = self.get_headers(sheet_name)
+        offset = row_idx - 2
+        conn = self._conn()
+        row = conn.execute(
+            f'SELECT _rowid FROM {_quote(sheet_name)} ORDER BY _rowid ASC LIMIT 1 OFFSET ?', (offset,)
+        ).fetchone()
+        if not row:
+            return
+        actual_rowid = row[0]
+        valid_items = [(k, data[k]) for k in data.keys() if k in headers]
+        if not valid_items:
+            return
+        set_sql = ", ".join([f'{_quote(k)} = ?' for k, _ in valid_items])
+        params = [v for _, v in valid_items] + [actual_rowid]
+        conn.execute(f'UPDATE {_quote(sheet_name)} SET {set_sql} WHERE _rowid = ?', params)
+        conn.commit()
 
     def find_record(self, sheet_name, col_name, value):
-        records = self.get_all_records(sheet_name)
-        for r in records:
-            if str(r.get(col_name, "")) == str(value):
-                return r
-        return None
+        records = self.find_records(sheet_name, col_name, value, limit=1)
+        return records[0] if records else None
 
-    def find_records(self, sheet_name, col_name, value):
-        records = self.get_all_records(sheet_name)
-        return [r for r in records if str(r.get(col_name, "")) == str(value)]
+    def find_records(self, sheet_name, col_name, value, limit: Optional[int] = None):
+        headers = self.get_headers(sheet_name)
+        if col_name not in headers:
+            return []
+        conn = self._conn()
+        limit_sql = f' LIMIT {int(limit)}' if limit else ''
+        query = f'SELECT {", ".join(_quote(h) for h in headers)} FROM {_quote(sheet_name)} WHERE COALESCE({_quote(col_name)}, "") = ? ORDER BY _rowid ASC{limit_sql}'
+        rows = conn.execute(query, (str(value),)).fetchall()
+        return [{h: ("" if row[h] is None else str(row[h])) for h in headers} for row in rows]
 
     def count_records(self, sheet_name):
-        return len(self.get_all_records(sheet_name))
+        conn = self._conn()
+        return conn.execute(f'SELECT COUNT(*) FROM {_quote(sheet_name)}').fetchone()[0]
 
     def get_next_seq(self, sheet_name):
         return self.count_records(sheet_name) + 1
 
     def set_filter(self, sheet_name):
-        try:
-            ws = self.get_sheet(sheet_name)
-            ws.set_basic_filter()
-            logger.info("Filter set: %s", sheet_name)
-        except Exception as e:
-            logger.debug("Filter skip for %s: %s", sheet_name, e)
+        return None
+
+    def find_cell(self, sheet_name, value, in_column: Optional[int] = None):
+        headers = self.get_headers(sheet_name)
+        conn = self._conn()
+        if in_column and 1 <= in_column <= len(headers):
+            col = headers[in_column - 1]
+            row_idx = self.find_row_index(sheet_name, col, value)
+            return _FoundCell(row_idx) if row_idx else None
+        for col in headers:
+            row_idx = self.find_row_index(sheet_name, col, value)
+            if row_idx:
+                return _FoundCell(row_idx)
+        return None
 
 
 async def async_get_all_records(sheet_name):
