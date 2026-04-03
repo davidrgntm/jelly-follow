@@ -705,24 +705,108 @@ async def web_update_country(country_code: str, payload: CountryUpdateIn, admin:
     sheets.update_row(SHEET_COUNTRIES, row_idx, update)
     return {"ok": True}
 
+from fastapi import UploadFile, File
 from fastapi.responses import FileResponse
 import os
+import shutil
+import sqlite3
 
-@router.get("/admin/download-db")
-async def download_db(key: str):
+from app.integrations.google_sheets import SheetsClient
+
+@router.post("/admin/upload-db")
+async def upload_db(key: str, db_file: UploadFile = File(...)):
     if key != "mySecretKey123":
         return {"error": "unauthorized"}
 
-    path = "/data/jelly_follow.db"
+    if not db_file.filename.endswith(".db"):
+        return {"error": "only .db file allowed"}
 
-    if not os.path.exists(path):
-        return {"error": "db not found"}
+    tmp_path = "/data/jelly_follow.upload.tmp.db"
+    final_path = "/data/jelly_follow.db"
+    backup_path = "/data/jelly_follow.backup.db"
+    wal_path = final_path + "-wal"
+    shm_path = final_path + "-shm"
+    backup_wal_path = backup_path + "-wal"
+    backup_shm_path = backup_path + "-shm"
 
-    return FileResponse(
-        path,
-        media_type="application/octet-stream",
-        filename="jelly_follow.db"
-    )
+    with open(tmp_path, "wb") as f:
+        shutil.copyfileobj(db_file.file, f)
+
+    try:
+        conn = sqlite3.connect(tmp_path)
+        conn.execute("SELECT name FROM sqlite_master LIMIT 1")
+        conn.close()
+    except Exception as e:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+        return {"error": f"invalid sqlite file: {e}"}
+
+    try:
+        old_instance = SheetsClient._instance
+        if old_instance is not None:
+            old_conn = getattr(old_instance._local, "conn", None)
+            if old_conn is not None:
+                try:
+                    old_conn.execute("PRAGMA wal_checkpoint(FULL)")
+                    old_conn.close()
+                except Exception:
+                    pass
+                try:
+                    old_instance._local.conn = None
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    if os.path.exists(final_path):
+        shutil.copy2(final_path, backup_path)
+
+    if os.path.exists(wal_path):
+        try:
+            shutil.copy2(wal_path, backup_wal_path)
+        except Exception:
+            pass
+
+    if os.path.exists(shm_path):
+        try:
+            shutil.copy2(shm_path, backup_shm_path)
+        except Exception:
+            pass
+
+    os.replace(tmp_path, final_path)
+
+    for sidecar in [wal_path, shm_path]:
+        if os.path.exists(sidecar):
+            try:
+                os.remove(sidecar)
+            except Exception:
+                pass
+
+    try:
+        SheetsClient._instance = None
+        fresh = SheetsClient.get_instance()
+        conn = fresh._conn()
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA wal_checkpoint(FULL)")
+    except Exception as e:
+        return {
+            "ok": False,
+            "error": f"db uploaded but reopen failed: {e}",
+            "path": final_path,
+        }
+
+    return {
+        "ok": True,
+        "message": "database uploaded successfully",
+        "path": final_path,
+        "backup": backup_path if os.path.exists(backup_path) else None,
+        "removed_sidecars": {
+            "wal_removed": not os.path.exists(wal_path),
+            "shm_removed": not os.path.exists(shm_path),
+        },
+    }
     
 from fastapi import UploadFile, File
 from fastapi.responses import FileResponse
