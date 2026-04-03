@@ -32,6 +32,7 @@ from app.services.points_service import manual_adjust
 from app.services.web_auth_service import create_login_request, get_request, pop_approved_request
 from app.services.web_session_service import register_session, touch_session, close_session, list_active_sessions
 from app.services.notifications_service import notify_event_started
+from app.services.scans_service import enrich_scans_with_reason, resolve_scan
 from app.config import settings
 from app.bot.texts.translations import t
 from app.utils.datetime_utils import now_str
@@ -390,7 +391,7 @@ async def web_employee_detail(employee_id: str, admin: dict = Depends(require_we
         "employee": employee,
         "stats": stats,
         "qrs": qrs,
-        "recent_scans": scans[:100],
+        "recent_scans": enrich_scans_with_reason(scans[:100]),
         "participations": participations,
     }
 
@@ -456,7 +457,7 @@ async def web_event_detail(event_id: str, admin: dict = Depends(require_web_admi
         },
         "leaderboard": leaderboard,
         "leaderboard_by_country": leaderboard_by_country,
-        "recent_scans": event_scans[:100],
+        "recent_scans": enrich_scans_with_reason(event_scans[:100]),
     }
 
 
@@ -580,7 +581,25 @@ async def web_scans(limit: int = 100, admin: dict = Depends(require_web_admin)):
     sheets = get_sheets()
     scans = sheets.get_all_records(SHEET_SCANS_RAW)
     scans.sort(key=lambda s: s.get("scanned_at", ""), reverse=True)
-    return {"scans": scans[:limit]}
+    enriched = enrich_scans_with_reason(scans[:limit])
+    return {"scans": enriched}
+
+
+class ScanResolveIn(BaseModel):
+    action: str  # "approve" or "reject"
+
+
+@router.post("/api/web/scans/{scan_id}/resolve")
+async def web_resolve_scan(scan_id: str, payload: ScanResolveIn, admin: dict = Depends(require_web_admin)):
+    try:
+        result = resolve_scan(
+            scan_id=scan_id,
+            action=payload.action,
+            admin_id=admin.get("admin_id", "web"),
+        )
+        return {"ok": True, **result}
+    except ValueError as e:
+        raise HTTPException(status_code=400, detail=str(e))
 
 
 @router.get("/api/web/logs")
