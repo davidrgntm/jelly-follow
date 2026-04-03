@@ -171,3 +171,14 @@ async def health_db():
     except Exception as e:
         payload["error"] = str(e)
         return payload
+
+@router.get("/health/db-files")
+async def health_db_files():
+    base = "/data/jelly_follow.db"
+    items = {}
+    for path in [base, base + "-wal", base + "-shm", "/data/jelly_follow.backup.db"]:
+        items[path] = {
+            "exists": os.path.exists(path),
+            "size": os.path.getsize(path) if os.path.exists(path) else 0,
+        }
+    return {"ok": True, "files": items}
