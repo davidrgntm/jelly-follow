@@ -27,7 +27,7 @@ from app.services.events_service import (
 )
 from app.services.points_service import manual_adjust
 from app.services.leaderboard_service import build_leaderboard
-from app.services.notifications_service import notify_event_started
+from app.services.notifications_service import notify_event_started, send_message
 from app.services.web_auth_service import approve_request
 
 logger = logging.getLogger(__name__)
@@ -66,6 +66,10 @@ class AddAdminStates(StatesGroup):
     full_name = State()
 
 
+class BroadcastStates(StatesGroup):
+    text = State()
+
+
 def _get_admin_info(user_id):
     admin = get_admin_by_telegram_id(user_id)
     if not admin or admin.get("status") != "active":
@@ -98,7 +102,8 @@ def _admin_keyboard(lang="uz", role="ga"):
         [KeyboardButton(text=t("admin.menu.events", lang)), KeyboardButton(text=t("admin.menu.create_event", lang))],
         [KeyboardButton(text=t("admin.menu.employees", lang)), KeyboardButton(text=t("admin.menu.leaderboard", lang))],
         [KeyboardButton(text=t("admin.menu.manual_points", lang)), KeyboardButton(text=t("admin.menu.employee_status", lang))],
-        [KeyboardButton(text=t("admin.menu.stats", lang)), KeyboardButton(text=t("admin.menu.language", lang))],
+        [KeyboardButton(text=t("admin.menu.broadcast", lang)), KeyboardButton(text=t("admin.menu.stats", lang))],
+        [KeyboardButton(text=t("admin.menu.language", lang))],
     ]
     if role == "super_admin":
         rows.append([KeyboardButton(text=t("admin.menu.add_admin", lang))])
@@ -750,6 +755,54 @@ async def cb_manual_points(cb: CallbackQuery, state: FSMContext, lang: str, **kw
     await _restore_admin_kb(cb.message, cb.from_user.id, lang)
     await cb.answer()
 
+
+
+
+@router.message(_admin_text("admin.menu.broadcast"))
+async def admin_broadcast(message: Message, state: FSMContext, lang: str, **kwargs):
+    admin = _get_admin_info(message.from_user.id)
+    if not admin:
+        return
+    await state.clear()
+    await state.set_state(BroadcastStates.text)
+    await message.answer(t("admin.broadcast.prompt", lang), reply_markup=_cancel_reply_kb(lang), parse_mode="HTML")
+
+
+@router.message(BroadcastStates.text)
+async def admin_broadcast_text(message: Message, state: FSMContext, lang: str, **kwargs):
+    raw_text = (message.html_text or message.text or "").strip()
+    if not raw_text:
+        await message.answer(t("admin.broadcast.empty", lang))
+        return
+
+    employees = get_all_employees()
+    targets = []
+    seen = set()
+    for emp in employees:
+        tg_id = str(emp.get("telegram_user_id") or "").strip()
+        if not tg_id or tg_id in seen:
+            continue
+        if emp.get("status") != "active":
+            continue
+        seen.add(tg_id)
+        targets.append(tg_id)
+
+    sent = 0
+    failed = 0
+    for tg_id in targets:
+        try:
+            await send_message(tg_id, raw_text)
+            sent += 1
+            await asyncio.sleep(0.05)
+        except Exception:
+            failed += 1
+
+    await state.clear()
+    await message.answer(
+        t("admin.broadcast.done", lang).format(sent=sent, failed=failed, total=len(targets)),
+        parse_mode="HTML",
+        reply_markup=_admin_keyboard(lang, (_get_admin_info(message.from_user.id) or {}).get("role_code", "ga")),
+    )
 
 @router.message(_admin_text("admin.menu.employee_status"))
 async def admin_emp_status(message: Message, state: FSMContext, lang: str, **kwargs):
