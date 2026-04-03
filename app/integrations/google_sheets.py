@@ -107,6 +107,19 @@ def _quote(name: str) -> str:
     return '"' + str(name).replace('"', '""') + '"'
 
 
+def _resolve_sqlite_path() -> str:
+    raw = str(getattr(settings, "SQLITE_PATH", "data/jelly_follow.db") or "data/jelly_follow.db").strip()
+    raw = raw.strip('"').strip("'")
+
+    if os.path.isabs(raw):
+        return raw
+
+    if os.path.isdir("/data"):
+        return os.path.join("/data", os.path.basename(raw))
+
+    return raw
+
+
 class SQLiteWorksheet:
     def __init__(self, client: "SheetsClient", name: str):
         self.client = client
@@ -179,8 +192,11 @@ class SheetsClient:
     _init_lock = threading.Lock()
 
     def __init__(self):
-        self.db_path = settings.SQLITE_PATH
+        raw_db_path = str(getattr(settings, "SQLITE_PATH", "data/jelly_follow.db") or "data/jelly_follow.db")
+        self.db_path = _resolve_sqlite_path()
         os.makedirs(os.path.dirname(self.db_path) or ".", exist_ok=True)
+        logger.info("SQLite path resolved: raw=%s effective=%s", raw_db_path, self.db_path)
+
         self._local = threading.local()
         self._sheet_cache = {}
         self._ensure_schema()
@@ -425,11 +441,14 @@ class SheetsClient:
 async def async_get_all_records(sheet_name):
     return await asyncio.to_thread(get_sheets().get_all_records, sheet_name)
 
+
 async def async_append_row(sheet_name, row):
     await asyncio.to_thread(get_sheets().append_row, sheet_name, row)
 
+
 async def async_find_record(sheet_name, col_name, value):
     return await asyncio.to_thread(get_sheets().find_record, sheet_name, col_name, value)
+
 
 async def async_update_row(sheet_name, row_idx, data):
     await asyncio.to_thread(get_sheets().update_row, sheet_name, row_idx, data)
