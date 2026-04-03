@@ -24,12 +24,19 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# BOT_MODE: "polling" | "webhook" | "none"
 BOT_MODE = settings.BOT_MODE.lower()
 
 
 def _normalize_sqlite_path() -> str:
     path = str(getattr(settings, "SQLITE_PATH", "data/jelly_follow.db") or "data/jelly_follow.db").strip()
+    path = path.strip('"').strip("'")
+
+    if os.path.isabs(path):
+        return path
+
+    if os.path.isdir("/data"):
+        return os.path.join("/data", os.path.basename(path))
+
     return path
 
 
@@ -81,7 +88,6 @@ async def lifespan(app: FastAPI):
     app.state.dp = None
     app.state.bot_task = None
 
-    # 1) Google Sheets bootstrap
     try:
         if settings.BOOTSTRAP_ON_START:
             run_bootstrap()
@@ -89,10 +95,8 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.error("Bootstrap failed: %s", e)
 
-    # 1.5) One-time Google Sheets -> SQLite import
     _maybe_import_sqlite_on_start()
 
-    # 2) Super admin seed
     try:
         if settings.SEED_SUPER_ADMIN_ON_START:
             seed_super_admin(settings.SUPER_ADMIN_TELEGRAM_ID)
@@ -100,7 +104,6 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         logger.warning("Super admin seed failed: %s", e)
 
-    # 3) Bot init
     if BOT_MODE != "none":
         from app.bot.bot import create_bot, create_dispatcher
 
@@ -129,8 +132,7 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    # Shutdown
-    logger.info("Shutting down...")
+    logger.info("Shutting down.")
 
     if getattr(app.state, "bot_task", None):
         app.state.bot_task.cancel()
@@ -216,7 +218,6 @@ async def telegram_webhook(request: Request):
 
 @app.post("/internal/set-webhook")
 async def manual_set_webhook(x_internal_secret: str = Header("")):
-    """Manually set webhook — use when auto-setup fails."""
     if x_internal_secret != settings.INTERNAL_SECRET:
         raise HTTPException(status_code=403, detail="Forbidden")
 
