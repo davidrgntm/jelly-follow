@@ -931,15 +931,19 @@ async def import_employees_csv(
 
     required_columns = [
         "employee_id",
-        "country_code",
         "employee_code",
         "full_name",
-        "telegram_user_id",
         "phone",
+        "telegram_user_id",
+        "telegram_username",
+        "country_code",
         "language_code",
-        "is_active",
-        "created_at",
-        "updated_at",
+        "status",
+        "registered_at",
+        "last_active_at",
+        "qr_id",
+        "short_link",
+        "notes",
     ]
 
     missing = [c for c in required_columns if c not in rows[0].keys()]
@@ -954,7 +958,6 @@ async def import_employees_csv(
     conn.row_factory = sqlite3.Row
 
     try:
-        conn.execute("PRAGMA journal_mode=WAL")
         conn.execute("PRAGMA busy_timeout = 30000")
 
         if replace:
@@ -967,29 +970,37 @@ async def import_employees_csv(
                 '''
                 INSERT INTO "employees" (
                     employee_id,
-                    country_code,
                     employee_code,
                     full_name,
-                    telegram_user_id,
                     phone,
+                    telegram_user_id,
+                    telegram_username,
+                    country_code,
                     language_code,
-                    is_active,
-                    created_at,
-                    updated_at
+                    status,
+                    registered_at,
+                    last_active_at,
+                    qr_id,
+                    short_link,
+                    notes
                 )
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 ''',
                 (
                     (row.get("employee_id") or "").strip(),
-                    (row.get("country_code") or "").strip(),
                     (row.get("employee_code") or "").strip(),
                     (row.get("full_name") or "").strip(),
-                    (row.get("telegram_user_id") or "").strip(),
                     (row.get("phone") or "").strip(),
+                    (row.get("telegram_user_id") or "").strip(),
+                    (row.get("telegram_username") or "").strip(),
+                    (row.get("country_code") or "").strip(),
                     (row.get("language_code") or "").strip(),
-                    (row.get("is_active") or "").strip(),
-                    (row.get("created_at") or "").strip(),
-                    (row.get("updated_at") or "").strip(),
+                    (row.get("status") or "").strip(),
+                    (row.get("registered_at") or "").strip(),
+                    (row.get("last_active_at") or "").strip(),
+                    (row.get("qr_id") or "").strip(),
+                    (row.get("short_link") or "").strip(),
+                    (row.get("notes") or "").strip(),
                 ),
             )
             inserted += 1
