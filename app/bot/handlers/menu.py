@@ -202,7 +202,7 @@ async def cb_qr_event(cb: CallbackQuery, employee: dict, lang: str):
 
 
 def _qr_select_keyboard(events, lang):
-    rows = [[InlineKeyboardButton(text=t("qr.personal", lang), callback_data="qr:self")]]
+    rows = []
     for ev in events:
         event_name = (ev.get("event_name") or ev.get("event_id") or "Event").strip()
         rows.append([InlineKeyboardButton(text=f"{t('qr.event_prefix', lang)}: {event_name[:40]}", callback_data=f"qr:event:{ev['event_id']}")])
