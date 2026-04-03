@@ -851,3 +851,49 @@ async def upload_db(key: str, db_file: UploadFile = File(...)):
         "path": final_path,
         "backup": backup_path if os.path.exists(backup_path) else None,
     }
+
+import os
+from app.integrations.google_sheets import SheetsClient
+
+@router.post("/admin/reset-sqlite-wal")
+async def reset_sqlite_wal(key: str):
+    if key != "mySecretKey123":
+        return {"error": "unauthorized"}
+
+    base = "/data/jelly_follow.db"
+    wal = base + "-wal"
+    shm = base + "-shm"
+
+    try:
+        old_instance = SheetsClient._instance
+        if old_instance is not None:
+            old_conn = getattr(old_instance._local, "conn", None)
+            if old_conn is not None:
+                try:
+                    old_conn.close()
+                except Exception:
+                    pass
+                try:
+                    old_instance._local.conn = None
+                except Exception:
+                    pass
+    except Exception:
+        pass
+
+    SheetsClient._instance = None
+
+    removed = {}
+    for p in [wal, shm]:
+        if os.path.exists(p):
+            try:
+                os.remove(p)
+                removed[p] = True
+            except Exception as e:
+                removed[p] = f"failed: {e}"
+        else:
+            removed[p] = False
+
+    return {
+        "ok": True,
+        "removed": removed,
+    }
