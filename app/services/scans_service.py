@@ -146,3 +146,106 @@ def _log(sheets, action, entity_type, entity_id, message, level="INFO"):
     sheets.append_row(SHEET_SYSTEM_LOGS, [
         generate_log_id(seq), now_str(), level, action, entity_type, entity_id, message
     ])
+
+
+def get_pending_reason(scan: dict) -> str:
+    """Analyze WHY a scan is still pending and return a human-readable reason code."""
+    decision = (scan.get("point_decision") or "").strip().lower()
+    if decision != "pending":
+        return ""
+
+    device_key = (scan.get("device_key") or "").strip()
+    fingerprint = (scan.get("fingerprint_id") or "").strip()
+    scan_status = (scan.get("scan_status") or "").strip().lower()
+    os_name = (scan.get("os_name") or "").strip()
+    browser = (scan.get("browser_name") or "").strip()
+    deep_link = (scan.get("deep_link_attempted") or "").strip().lower()
+    fallback = (scan.get("fallback_used") or "").strip().lower()
+
+    # 1) JS hech ishlamagan — device_key yo'q
+    if not device_key and not fingerprint and not os_name and not browser:
+        if scan_status == "opened":
+            return "js_not_fired"          # JS umuman ishlamadi (sahifa tezda yopilgan)
+        return "no_device_data"            # Qurilma ma'lumotlari kelmagan
+
+    # 2) Device key bor lekin qaror hali chiqmagan (kamdan-kam holat)
+    if device_key and decision == "pending":
+        return "processing_incomplete"     # Jarayon yakunlanmagan
+
+    # 3) Fingerprint bor, device_key yo'q
+    if fingerprint and not device_key:
+        return "fingerprint_only"          # Faqat fingerprint kelgan
+
+    return "unknown"                       # Noma'lum sabab
+
+
+def enrich_scans_with_reason(scans: list[dict]) -> list[dict]:
+    """Add pending_reason field to each scan."""
+    for s in scans:
+        s["pending_reason"] = get_pending_reason(s)
+    return scans
+
+
+def resolve_scan(scan_id: str, action: str, admin_id: str) -> dict:
+    """Manually resolve a pending scan.
+
+    action: 'approve' — give point (first_unique_device)
+            'reject'  — mark as rejected (no point)
+    """
+    sheets = get_sheets()
+    scan = sheets.find_record(SHEET_SCANS_RAW, "scan_id", scan_id)
+    if not scan:
+        raise ValueError(f"Scan not found: {scan_id}")
+
+    current_decision = (scan.get("point_decision") or "").strip().lower()
+    if current_decision != "pending":
+        raise ValueError(f"Scan already resolved: {current_decision}")
+
+    row_idx = sheets.find_row_index(SHEET_SCANS_RAW, "scan_id", scan_id)
+    if not row_idx:
+        raise ValueError(f"Scan row not found: {scan_id}")
+
+    employee_id = scan.get("employee_id", "")
+    employee_code = scan.get("employee_code", "")
+    country_code = scan.get("country_code", "")
+    event_id = scan.get("event_id", "")
+    device_key = scan.get("device_key", "")
+
+    point_tx_id = ""
+
+    if action == "approve":
+        point_tx_id = award_point(
+            employee_id=employee_id,
+            employee_code=employee_code,
+            scan_id=scan_id,
+            device_key=device_key or f"manual_{scan_id}",
+            country_code=country_code,
+            event_id=event_id,
+            reason_code="manual_approve",
+        )
+        new_decision = "first_unique_device"
+        new_status = "approved_manual"
+    elif action == "reject":
+        new_decision = "rejected"
+        new_status = "rejected_manual"
+    else:
+        raise ValueError(f"Invalid action: {action}")
+
+    sheets.update_row(SHEET_SCANS_RAW, row_idx, {
+        "point_decision": new_decision,
+        "scan_status": new_status,
+        "point_transaction_id": point_tx_id,
+    })
+
+    _log(sheets, f"scan_{action}", "scan", scan_id,
+         f"Manual {action} by admin={admin_id}, employee={employee_code}, decision={new_decision}")
+
+    logger.info("Scan %s %sd by admin %s → %s", scan_id, action, admin_id, new_decision)
+
+    return {
+        "scan_id": scan_id,
+        "point_decision": new_decision,
+        "scan_status": new_status,
+        "point_tx_id": point_tx_id,
+        "action": action,
+    }
