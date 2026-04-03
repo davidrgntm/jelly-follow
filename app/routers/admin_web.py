@@ -897,3 +897,117 @@ async def reset_sqlite_wal(key: str):
         "ok": True,
         "removed": removed,
     }
+import csv
+import io
+import sqlite3
+from fastapi import UploadFile, File
+
+@router.post("/admin/import-employees-csv")
+async def import_employees_csv(
+    key: str,
+    csv_file: UploadFile = File(...),
+    replace: bool = True
+):
+    if key != "mySecretKey123":
+        return {"error": "unauthorized"}
+
+    if not csv_file.filename.lower().endswith(".csv"):
+        return {"error": "only .csv file allowed"}
+
+    content = await csv_file.read()
+
+    try:
+        text = content.decode("utf-8-sig")
+    except Exception:
+        return {"error": "csv must be utf-8 encoded"}
+
+    reader = csv.DictReader(io.StringIO(text))
+    rows = list(reader)
+
+    if not rows:
+        return {"error": "csv is empty"}
+
+    db_path = "/data/jelly_follow.db"
+
+    required_columns = [
+        "employee_id",
+        "country_code",
+        "employee_code",
+        "full_name",
+        "telegram_user_id",
+        "phone",
+        "language_code",
+        "is_active",
+        "created_at",
+        "updated_at",
+    ]
+
+    missing = [c for c in required_columns if c not in rows[0].keys()]
+    if missing:
+        return {
+            "error": "missing required columns",
+            "missing": missing,
+            "found": list(rows[0].keys()),
+        }
+
+    conn = sqlite3.connect(db_path, timeout=30)
+    conn.row_factory = sqlite3.Row
+
+    try:
+        conn.execute("PRAGMA journal_mode=WAL")
+        conn.execute("PRAGMA busy_timeout = 30000")
+
+        if replace:
+            conn.execute('DELETE FROM "employees"')
+
+        inserted = 0
+
+        for row in rows:
+            conn.execute(
+                '''
+                INSERT INTO "employees" (
+                    employee_id,
+                    country_code,
+                    employee_code,
+                    full_name,
+                    telegram_user_id,
+                    phone,
+                    language_code,
+                    is_active,
+                    created_at,
+                    updated_at
+                )
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ''',
+                (
+                    (row.get("employee_id") or "").strip(),
+                    (row.get("country_code") or "").strip(),
+                    (row.get("employee_code") or "").strip(),
+                    (row.get("full_name") or "").strip(),
+                    (row.get("telegram_user_id") or "").strip(),
+                    (row.get("phone") or "").strip(),
+                    (row.get("language_code") or "").strip(),
+                    (row.get("is_active") or "").strip(),
+                    (row.get("created_at") or "").strip(),
+                    (row.get("updated_at") or "").strip(),
+                ),
+            )
+            inserted += 1
+
+        conn.commit()
+
+        count_now = conn.execute('SELECT COUNT(*) FROM "employees"').fetchone()[0]
+
+        return {
+            "ok": True,
+            "message": "employees imported successfully",
+            "inserted": inserted,
+            "replace": replace,
+            "count_now": count_now,
+        }
+
+    except Exception as e:
+        conn.rollback()
+        return {"error": str(e)}
+    finally:
+        conn.close()
