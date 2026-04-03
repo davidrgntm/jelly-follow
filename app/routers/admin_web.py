@@ -704,3 +704,22 @@ async def web_update_country(country_code: str, payload: CountryUpdateIn, admin:
     update["updated_at"] = now_str()
     sheets.update_row(SHEET_COUNTRIES, row_idx, update)
     return {"ok": True}
+
+from fastapi.responses import FileResponse
+import os
+
+@router.get("/admin/download-db")
+async def download_db(key: str):
+    if key != "mySecretKey123":
+        return {"error": "unauthorized"}
+
+    path = "/data/jelly_follow.db"
+
+    if not os.path.exists(path):
+        return {"error": "db not found"}
+
+    return FileResponse(
+        path,
+        media_type="application/octet-stream",
+        filename="jelly_follow.db"
+    )
