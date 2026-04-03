@@ -1,5 +1,5 @@
 import json
-from typing import Optional, List
+from typing import Optional
 from pydantic_settings import BaseSettings
 
 
@@ -8,6 +8,11 @@ class Settings(BaseSettings):
 
     BASE_URL: str = "https://api.follow.jelly.uz"
     TRACKING_DOMAIN: str = "https://go.jelly.uz"
+
+    DB_BACKEND: str = "sqlite"  # sqlite | google_sheets (legacy)
+    SQLITE_PATH: str = "data/jelly_follow.db"
+    SQLITE_TIMEOUT: float = 30.0
+    SQLITE_IMPORT_ON_START: bool = False
 
     GOOGLE_SERVICE_ACCOUNT_JSON_PATH: Optional[str] = None
     GOOGLE_SERVICE_ACCOUNT_JSON: Optional[str] = None
