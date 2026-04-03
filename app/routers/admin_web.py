@@ -723,3 +723,47 @@ async def download_db(key: str):
         media_type="application/octet-stream",
         filename="jelly_follow.db"
     )
+    
+from fastapi import UploadFile, File
+from fastapi.responses import FileResponse
+import os
+import shutil
+import sqlite3
+
+@router.post("/admin/upload-db")
+async def upload_db(key: str, db_file: UploadFile = File(...)):
+    if key != "mySecretKey123":
+        return {"error": "unauthorized"}
+
+    if not db_file.filename.endswith(".db"):
+        return {"error": "only .db file allowed"}
+
+    tmp_path = "/data/jelly_follow.upload.tmp.db"
+    final_path = "/data/jelly_follow.db"
+    backup_path = "/data/jelly_follow.backup.db"
+
+    with open(tmp_path, "wb") as f:
+        shutil.copyfileobj(db_file.file, f)
+
+    try:
+        conn = sqlite3.connect(tmp_path)
+        conn.execute("SELECT name FROM sqlite_master LIMIT 1")
+        conn.close()
+    except Exception as e:
+        try:
+            os.remove(tmp_path)
+        except Exception:
+            pass
+        return {"error": f"invalid sqlite file: {e}"}
+
+    if os.path.exists(final_path):
+        shutil.copy2(final_path, backup_path)
+
+    os.replace(tmp_path, final_path)
+
+    return {
+        "ok": True,
+        "message": "database uploaded successfully",
+        "path": final_path,
+        "backup": backup_path if os.path.exists(backup_path) else None,
+    }
