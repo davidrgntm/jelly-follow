@@ -2,6 +2,8 @@
 from __future__ import annotations
 
 import logging
+import os
+import sqlite3
 from typing import Optional, List
 
 from fastapi import APIRouter, HTTPException, Request, Depends
@@ -50,6 +52,43 @@ def _client_ip(request: Request) -> str:
     if real_ip:
         return real_ip.strip()
     return request.client.host if request.client else ""
+
+
+
+def _resolve_sqlite_path() -> str:
+    raw = str(getattr(settings, "SQLITE_PATH", "data/jelly_follow.db") or "data/jelly_follow.db").strip()
+    raw = raw.strip("\"").strip("'")
+    if os.path.isabs(raw):
+        return raw
+    if os.path.isdir("/data"):
+        return os.path.join("/data", os.path.basename(raw))
+    return raw
+
+def _fetch_recent_scans_sql(limit: int = 100) -> list[dict]:
+    db_path = _resolve_sqlite_path()
+    conn = sqlite3.connect(
+        db_path,
+        timeout=float(getattr(settings, "SQLITE_TIMEOUT", 30.0)),
+        check_same_thread=False,
+    )
+    conn.row_factory = sqlite3.Row
+    try:
+        safe_limit = max(1, min(int(limit or 100), 1000))
+        rows = conn.execute(
+            f'''
+            SELECT *
+            FROM "{SHEET_SCANS_RAW}"
+            ORDER BY _rowid DESC
+            LIMIT ?
+            ''',
+            (safe_limit,),
+        ).fetchall()
+        scans: list[dict] = []
+        for row in rows:
+            scans.append({k: ("" if row[k] is None else str(row[k])) for k in row.keys()})
+        return scans
+    finally:
+        conn.close()
 
 
 def _event_stats_payload(event: dict, employees: list[dict], scans: list[dict], points: list[dict], participants: list[dict]) -> dict:
@@ -578,11 +617,13 @@ async def web_manual_points_legacy(payload: LegacyManualPointsIn, admin: dict = 
 
 @router.get("/api/web/scans")
 async def web_scans(limit: int = 100, admin: dict = Depends(require_web_admin)):
-    sheets = get_sheets()
-    scans = sheets.get_all_records(SHEET_SCANS_RAW)
-    scans.sort(key=lambda s: s.get("scanned_at", ""), reverse=True)
-    enriched = enrich_scans_with_reason(scans[:limit])
-    return {"scans": enriched}
+    scans = _fetch_recent_scans_sql(limit=limit)
+    enriched = enrich_scans_with_reason(scans)
+    response = JSONResponse({"scans": enriched})
+    response.headers["Cache-Control"] = "no-store, no-cache, must-revalidate, max-age=0"
+    response.headers["Pragma"] = "no-cache"
+    response.headers["Expires"] = "0"
+    return response
 
 
 class ScanResolveIn(BaseModel):
