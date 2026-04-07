@@ -1,0 +1,12 @@
+Merged from Old bot + New bot.
+
+Included:
+- Mini App QR flow with rotating QR and live scan updates
+- QR button opens Mini App with tg_id fallback
+- event bonus rules/submissions backend
+- admin language persistence for non-employee admins via meta table keys admin_lang:<telegram_user_id>
+
+Data safety:
+- Keep same SQLite volume/path (/data/jelly_follow.db)
+- Do not enable SQLITE_IMPORT_ON_START unless intentionally importing
+- New SQLite tables auto-create on startup: event_bonus_rules, event_bonus_submissions

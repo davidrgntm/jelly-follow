@@ -1,0 +1,2031 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Jelly Follow Admin</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;0,9..40,800;1,9..40,400&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #f5f3ef;
+  --bg2: #ece9e3;
+  --surface: #ffffff;
+  --surface2: #faf9f7;
+  --border: #e2ddd5;
+  --border2: #d4cec4;
+  --text: #1a1612;
+  --text2: #6b6258;
+  --text3: #9a9088;
+  --accent: #6c3baa;
+  --accent-light: #f0e8fa;
+  --accent-hover: #5a2f92;
+  --green: #1a8a4a;
+  --green-bg: #e8f5ee;
+  --amber: #b07308;
+  --amber-bg: #fef3db;
+  --red: #c93b3b;
+  --red-bg: #fce8e8;
+  --blue: #2563a8;
+  --blue-bg: #e5f0fa;
+  --radius: 12px;
+  --radius-sm: 8px;
+  --radius-lg: 16px;
+  --shadow-sm: 0 1px 3px rgba(0,0,0,.04), 0 1px 2px rgba(0,0,0,.03);
+  --shadow: 0 4px 16px rgba(0,0,0,.06), 0 1px 4px rgba(0,0,0,.04);
+  --shadow-lg: 0 12px 40px rgba(0,0,0,.08);
+  --font: 'DM Sans', system-ui, sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+  --transition: .18s ease;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { height: 100%; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 14px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+button, input, select, textarea { font: inherit; }
+.hidden { display: none !important; }
+
+/* ─── Layout ─── */
+.app { display: grid; grid-template-columns: 240px 1fr; height: 100vh; }
+
+/* ─── Sidebar ─── */
+.sidebar {
+  background: var(--surface);
+  border-right: 1px solid var(--border);
+  display: flex; flex-direction: column;
+  overflow: hidden;
+}
+.sidebar-header {
+  padding: 20px 20px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.brand { display: flex; align-items: center; gap: 12px; }
+.brand-icon {
+  width: 38px; height: 38px; border-radius: 10px;
+  background: linear-gradient(135deg, #6c3baa, #9b5de5);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.brand-text h1 { font-size: 16px; font-weight: 700; letter-spacing: -.02em; }
+.brand-text span { font-size: 11px; color: var(--text3); font-weight: 500; }
+
+.sidebar-nav { flex: 1; overflow-y: auto; padding: 12px; }
+.nav-label {
+  font-size: 10px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .08em; color: var(--text3);
+  padding: 16px 10px 6px; user-select: none;
+}
+.nav-item {
+  width: 100%; padding: 10px 12px; border-radius: var(--radius-sm);
+  border: none; background: transparent; color: var(--text2);
+  text-align: left; font-weight: 600; font-size: 13px;
+  cursor: pointer; display: flex; align-items: center; gap: 10px;
+  transition: var(--transition); margin-bottom: 2px;
+}
+.nav-item:hover { background: var(--bg); color: var(--text); }
+.nav-item.active {
+  background: var(--accent-light); color: var(--accent);
+}
+.nav-item .icon { font-size: 16px; width: 22px; text-align: center; flex-shrink: 0; }
+.nav-item .badge-count {
+  margin-left: auto; font-size: 11px; font-weight: 700;
+  padding: 2px 8px; border-radius: 999px;
+  background: var(--bg); color: var(--text3);
+}
+.nav-item.active .badge-count { background: rgba(108,59,170,.12); color: var(--accent); }
+
+.sidebar-footer {
+  padding: 12px 16px; border-top: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+}
+.user-info { display: flex; align-items: center; gap: 10px; }
+.user-avatar {
+  width: 32px; height: 32px; border-radius: 50%;
+  background: var(--accent-light); color: var(--accent);
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 13px;
+}
+.user-name { font-weight: 600; font-size: 13px; }
+.user-role { font-size: 11px; color: var(--text3); }
+.sidebar-footer-row {
+  display: flex; align-items: center; gap: 6px; justify-content: space-between;
+}
+
+/* ─── Main content ─── */
+.main { overflow-y: auto; }
+.topbar {
+  position: sticky; top: 0; z-index: 10;
+  background: rgba(245,243,239,.92); backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+  padding: 12px 24px;
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+}
+.topbar-left { display: flex; align-items: center; gap: 12px; }
+.hamburger {
+  display: none; width: 36px; height: 36px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; font-size: 16px;
+  align-items: center; justify-content: center;
+}
+.page-title { font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.page-subtitle { font-size: 12px; color: var(--text3); font-weight: 500; }
+.topbar-actions { display: flex; align-items: center; gap: 8px; }
+
+.content { padding: 24px; max-width: 1400px; margin: 0 auto; }
+.panel { display: none; }
+.panel.active { display: block; }
+
+/* ─── Shared Components ─── */
+.card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); padding: 20px;
+  box-shadow: var(--shadow-sm);
+}
+.card-title { font-size: 15px; font-weight: 700; margin-bottom: 4px; }
+.card-sub { font-size: 12px; color: var(--text3); }
+.card-header { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+
+input, textarea, .select {
+  padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  color: var(--text); width: 100%; outline: none;
+  transition: var(--transition); font-size: 13px;
+}
+input:focus, textarea:focus, .select:focus {
+  border-color: var(--accent); box-shadow: 0 0 0 3px rgba(108,59,170,.1);
+}
+textarea { min-height: 80px; resize: vertical; }
+.select { cursor: pointer; }
+
+.btn {
+  padding: 9px 18px; border-radius: var(--radius-sm);
+  border: none; cursor: pointer; font-weight: 700; font-size: 13px;
+  transition: var(--transition); white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px;
+}
+.btn-primary { background: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-hover); transform: translateY(-1px); }
+.btn-secondary { background: var(--bg); border: 1px solid var(--border); color: var(--text); }
+.btn-secondary:hover { background: var(--bg2); border-color: var(--border2); }
+.btn-danger { background: var(--red); color: #fff; }
+.btn-danger:hover { background: #b33030; }
+.btn-success { background: var(--green); color: #fff; }
+.btn-ghost { background: transparent; color: var(--text2); padding: 9px 12px; }
+.btn-ghost:hover { background: var(--bg); color: var(--text); }
+.btn:disabled { opacity: .4; cursor: not-allowed; transform: none; }
+.btn-sm { padding: 6px 12px; font-size: 12px; }
+.btn-icon { width: 34px; height: 34px; padding: 0; justify-content: center; }
+
+.badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px;
+  font-size: 11px; font-weight: 700;
+}
+.badge::before { content: ''; width: 6px; height: 6px; border-radius: 50%; }
+.badge-success { background: var(--green-bg); color: var(--green); }
+.badge-success::before { background: var(--green); }
+.badge-warn { background: var(--amber-bg); color: var(--amber); }
+.badge-warn::before { background: var(--amber); }
+.badge-danger { background: var(--red-bg); color: var(--red); }
+.badge-danger::before { background: var(--red); }
+.badge-info { background: var(--blue-bg); color: var(--blue); }
+.badge-info::before { background: var(--blue); }
+
+code {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--bg); padding: 2px 8px; border-radius: 6px;
+  border: 1px solid var(--border); color: var(--text2);
+}
+
+/* ─── Stat Cards ─── */
+.stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-bottom: 20px; }
+.stat-card {
+  padding: 16px 18px; border-radius: var(--radius); background: var(--surface);
+  border: 1px solid var(--border); position: relative; overflow: hidden;
+}
+.stat-card::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 3px;
+  background: linear-gradient(90deg, var(--accent), #9b5de5); opacity: .4;
+}
+.stat-label { font-size: 11px; color: var(--text3); font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.stat-value { font-size: 26px; font-weight: 800; margin: 4px 0 2px; letter-spacing: -.02em; }
+.stat-sub { font-size: 11px; color: var(--text3); }
+
+/* ─── Tables ─── */
+.table-wrap { border-radius: var(--radius); border: 1px solid var(--border); overflow: auto; background: var(--surface); }
+table { width: 100%; border-collapse: collapse; min-width: 640px; }
+th {
+  padding: 10px 14px; font-size: 11px; font-weight: 700; text-transform: uppercase;
+  letter-spacing: .06em; color: var(--text3); background: var(--surface2);
+  text-align: left; border-bottom: 1px solid var(--border); position: sticky; top: 0; z-index: 1;
+}
+td {
+  padding: 11px 14px; border-bottom: 1px solid var(--border);
+  font-size: 13px; vertical-align: middle;
+}
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: var(--transition); }
+tbody tr:hover { background: var(--surface2); }
+
+/* ─── Toolbar ─── */
+.toolbar { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 14px; }
+.toolbar .grow { flex: 1 1 200px; min-width: 0; }
+.search-box { position: relative; }
+.search-box input { padding-left: 36px; }
+.search-box::before { content: '🔍'; position: absolute; left: 12px; top: 50%; transform: translateY(-50%); font-size: 13px; pointer-events: none; }
+
+/* ─── Tabs ─── */
+.tabs { display: flex; gap: 4px; margin-bottom: 14px; flex-wrap: wrap; }
+.tab {
+  padding: 7px 14px; border-radius: 999px; border: 1px solid var(--border);
+  background: transparent; color: var(--text2); cursor: pointer;
+  font-weight: 600; font-size: 12px; transition: var(--transition);
+}
+.tab:hover { border-color: var(--border2); color: var(--text); }
+.tab.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ─── Event cards ─── */
+.event-list { display: flex; flex-direction: column; gap: 10px; }
+.ev-card {
+  padding: 16px; border-radius: var(--radius); background: var(--surface);
+  border: 1px solid var(--border); cursor: pointer; transition: var(--transition);
+}
+.ev-card:hover { border-color: var(--accent); box-shadow: var(--shadow); transform: translateY(-1px); }
+.ev-card.selected { border-color: var(--accent); box-shadow: 0 0 0 2px rgba(108,59,170,.15); }
+.ev-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.ev-name { font-weight: 700; font-size: 15px; }
+.ev-id { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.ev-desc { font-size: 12px; color: var(--text2); margin-top: 6px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.ev-meta { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.ev-meta-item { font-size: 11px; padding: 5px 10px; border-radius: var(--radius-sm); background: var(--bg); color: var(--text2); font-weight: 600; }
+.ev-meta-item .label { color: var(--text3); margin-right: 4px; }
+.ev-actions { display: flex; gap: 6px; margin-top: 10px; flex-wrap: wrap; }
+
+/* ─── Event form (drawer) ─── */
+.event-layout { display: grid; grid-template-columns: 1.05fr .95fr; gap: 20px; align-items: start; }
+.drawer {
+  position: sticky; top: 80px;
+  max-height: calc(100vh - 100px); overflow-y: auto;
+}
+.form-stack { display: flex; flex-direction: column; gap: 12px; }
+.form-row { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.form-full { grid-column: 1 / -1; }
+.form-label { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .05em; margin-bottom: 6px; display: block; }
+
+.schedule-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.schedule-block {
+  padding: 14px; border-radius: var(--radius); background: var(--surface2);
+  border: 1px solid var(--border);
+}
+.schedule-block .title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; margin-bottom: 8px; }
+.time-btn {
+  width: 100%; padding: 10px 14px; border-radius: var(--radius-sm);
+  border: 1px solid var(--border); background: var(--surface);
+  cursor: pointer; display: flex; align-items: center; justify-content: space-between;
+  font-weight: 700; font-size: 15px; color: var(--text);
+  transition: var(--transition); margin-top: 8px;
+}
+.time-btn:hover { border-color: var(--accent); }
+.time-btn small { font-size: 10px; color: var(--text3); font-weight: 600; display: block; }
+
+.quick-btns { display: flex; gap: 6px; flex-wrap: wrap; }
+.quick-btn {
+  padding: 6px 12px; border-radius: 999px; border: 1px solid var(--border);
+  background: var(--surface); font-size: 12px; font-weight: 600;
+  cursor: pointer; transition: var(--transition); color: var(--text2);
+}
+.quick-btn:hover { border-color: var(--accent); color: var(--accent); background: var(--accent-light); }
+
+.summary-bar {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 12px 14px; border-radius: var(--radius);
+  background: var(--accent-light); border: 1px solid rgba(108,59,170,.15);
+}
+.summary-bar .main { font-size: 13px; font-weight: 700; color: var(--accent); }
+.summary-bar .sub { font-size: 11px; color: var(--text3); margin-top: 2px; }
+.summary-bar .chip { font-weight: 800; font-size: 13px; color: var(--accent); padding: 4px 10px; background: rgba(108,59,170,.1); border-radius: var(--radius-sm); }
+
+.warning-box { padding: 10px 14px; border-radius: var(--radius-sm); background: var(--amber-bg); border: 1px solid rgba(176,115,8,.2); color: var(--amber); font-size: 12px; font-weight: 600; display: none; }
+
+.country-checks { display: flex; gap: 8px; flex-wrap: wrap; }
+.country-check {
+  display: flex; align-items: center; gap: 6px; padding: 8px 12px;
+  border-radius: var(--radius-sm); background: var(--surface2);
+  border: 1px solid var(--border); cursor: pointer;
+  font-weight: 600; font-size: 13px; transition: var(--transition);
+}
+.country-check:hover { border-color: var(--accent); }
+.country-check input { accent-color: var(--accent); width: 16px; height: 16px; }
+
+.reward-row {
+  display: grid; grid-template-columns: 60px 1.2fr 1fr 80px 34px;
+  gap: 6px; align-items: center;
+}
+.reward-list { display: flex; flex-direction: column; gap: 6px; }
+
+.floating-actions {
+  position: sticky; bottom: 0; z-index: 5;
+  background: rgba(255,255,255,.92); backdrop-filter: blur(8px);
+  padding: 12px; border-radius: var(--radius);
+  border: 1px solid var(--border); margin-top: 12px;
+  display: flex; justify-content: flex-end; gap: 8px;
+}
+
+/* ─── Overview grid ─── */
+.overview-grid { display: grid; grid-template-columns: 1.2fr .8fr; gap: 16px; }
+.stack { display: flex; flex-direction: column; gap: 10px; }
+.mini-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(120px, 1fr)); gap: 8px; margin-bottom: 14px; }
+.mini-card { padding: 10px 12px; border-radius: var(--radius-sm); background: var(--surface2); border: 1px solid var(--border); }
+.mini-card .k { font-size: 10px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .06em; }
+.mini-card .v { font-size: 20px; font-weight: 800; margin-top: 3px; }
+
+/* ─── Grid layouts ─── */
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.quick-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* ─── Pagination ─── */
+.pagination { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 12px; flex-wrap: wrap; }
+.pag-info { font-size: 12px; color: var(--text3); }
+.pag-btns { display: flex; gap: 6px; }
+
+/* ─── Empty state ─── */
+.empty {
+  padding: 32px; text-align: center; color: var(--text3);
+  font-size: 13px; border: 1px dashed var(--border); border-radius: var(--radius);
+  background: var(--surface2);
+}
+
+/* ─── Login ─── */
+.login-overlay {
+  position: fixed; inset: 0; background: rgba(245,243,239,.85);
+  backdrop-filter: blur(16px); display: flex; align-items: center;
+  justify-content: center; z-index: 50; padding: 16px;
+}
+.login-card {
+  width: min(420px, 100%); padding: 32px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+}
+.login-card h2 { font-size: 20px; font-weight: 800; margin-bottom: 4px; }
+.login-card .desc { color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
+
+/* ─── Modals ─── */
+.modal-overlay {
+  position: fixed; inset: 0; background: rgba(0,0,0,.25);
+  backdrop-filter: blur(8px); display: flex; align-items: center;
+  justify-content: center; z-index: 60; padding: 16px;
+}
+.modal-card {
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-lg);
+  max-width: 420px; width: 100%; padding: 24px;
+}
+.modal-card h3 { font-size: 16px; font-weight: 800; margin-bottom: 8px; }
+.modal-card p { color: var(--text2); font-size: 13px; line-height: 1.6; margin-bottom: 20px; }
+.modal-actions { display: flex; gap: 8px; justify-content: flex-end; }
+
+/* ─── Time Picker ─── */
+.time-modal {
+  max-width: 500px; width: 100%; padding: 24px;
+}
+.wheel-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.wheel-col { padding: 10px; border-radius: var(--radius); background: var(--surface2); border: 1px solid var(--border); }
+.wheel-col .title { font-size: 11px; font-weight: 700; color: var(--text3); text-transform: uppercase; letter-spacing: .08em; margin-bottom: 8px; }
+.wheel {
+  height: 200px; overflow-y: auto; scroll-snap-type: y mandatory;
+  border-radius: var(--radius-sm); padding: 76px 0; position: relative;
+}
+.wheel::-webkit-scrollbar { width: 0; }
+.wheel::before {
+  content: ''; position: absolute; left: 6px; right: 6px; height: 44px;
+  border-radius: var(--radius-sm); border: 2px solid var(--accent);
+  background: var(--accent-light); pointer-events: none;
+  top: 78px; z-index: 1;
+}
+.wheel-opt {
+  height: 44px; display: flex; align-items: center; justify-content: center;
+  scroll-snap-align: center; font-size: 17px; font-weight: 800;
+  color: var(--text3); transition: .12s; cursor: pointer; opacity: .35;
+}
+.wheel-opt:hover { opacity: .6; }
+.wheel-opt.active { color: var(--accent); opacity: 1; }
+.time-preview {
+  font-size: 28px; font-weight: 800; color: var(--accent);
+  padding: 8px 16px; background: var(--accent-light); border-radius: var(--radius-sm);
+  letter-spacing: .05em;
+}
+.time-footer { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 16px; }
+
+/* ─── Toast ─── */
+.toast-container {
+  position: fixed; bottom: 20px; right: 20px; z-index: 200;
+  display: flex; flex-direction: column; gap: 8px; pointer-events: none;
+}
+.toast {
+  padding: 12px 16px; border-radius: var(--radius); font-size: 13px; font-weight: 600;
+  max-width: 340px; pointer-events: auto; display: flex; align-items: center; gap: 8px;
+  box-shadow: var(--shadow-lg); animation: slideIn .25s ease;
+}
+.toast-success { background: var(--green); color: #fff; }
+.toast-error { background: var(--red); color: #fff; }
+.toast-info { background: var(--blue); color: #fff; }
+.toast-warn { background: var(--amber); color: #fff; }
+.toast-close { margin-left: auto; background: none; border: none; color: inherit; cursor: pointer; font-size: 16px; opacity: .7; }
+@keyframes slideIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+@keyframes fadeOut { from { opacity: 1; } to { opacity: 0; transform: translateX(20px); } }
+
+.divider { height: 1px; background: var(--border); margin: 14px 0; }
+.sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.3); z-index: 18; backdrop-filter: blur(4px); }
+
+/* ─── Responsive ─── */
+@media (max-width: 1100px) {
+  .app { grid-template-columns: 1fr; }
+  .sidebar {
+    position: fixed; top: 0; left: -260px; height: 100vh; width: 240px;
+    z-index: 20; transition: left .25s ease; box-shadow: var(--shadow-lg);
+  }
+  .sidebar.open { left: 0; }
+  .sidebar-backdrop.open { display: block; }
+  .hamburger { display: flex; }
+  .event-layout { grid-template-columns: 1fr; }
+  .overview-grid { grid-template-columns: 1fr; }
+  .grid2 { grid-template-columns: 1fr; }
+  .drawer { position: static; max-height: none; }
+  .content { padding: 16px; }
+}
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr 1fr; }
+  .mini-cards { grid-template-columns: 1fr 1fr; }
+  .form-row { grid-template-columns: 1fr; }
+  .schedule-row { grid-template-columns: 1fr; }
+  .reward-row { grid-template-columns: 1fr; gap: 6px; }
+  .quick-grid { grid-template-columns: 1fr; }
+  .topbar-actions > .select { display: none; }
+}
+</style>
+
+<style id="ultra-redesign-overrides">
+:root {
+  --bg: #0b1020;
+  --bg2: #10182d;
+  --surface: rgba(15, 23, 42, 0.82);
+  --surface2: rgba(30, 41, 59, 0.52);
+  --border: rgba(148, 163, 184, 0.16);
+  --border2: rgba(167, 139, 250, 0.35);
+  --text: #f8fafc;
+  --text2: #cbd5e1;
+  --text3: #94a3b8;
+  --accent: #8b5cf6;
+  --accent-light: rgba(139, 92, 246, 0.14);
+  --accent-hover: #7c3aed;
+  --green: #22c55e;
+  --green-bg: rgba(34, 197, 94, 0.12);
+  --amber: #f59e0b;
+  --amber-bg: rgba(245, 158, 11, 0.12);
+  --red: #ef4444;
+  --red-bg: rgba(239, 68, 68, 0.12);
+  --blue: #38bdf8;
+  --blue-bg: rgba(56, 189, 248, 0.12);
+  --shadow-sm: 0 10px 30px rgba(0,0,0,.18);
+  --shadow: 0 24px 60px rgba(2,6,23,.28);
+  --shadow-lg: 0 30px 90px rgba(2,6,23,.45);
+  --transition: .22s cubic-bezier(.2,.8,.2,1);
+}
+html { background: radial-gradient(circle at top left, rgba(139,92,246,.14), transparent 35%), radial-gradient(circle at top right, rgba(14,165,233,.16), transparent 30%), #060913; }
+body {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at 0% 0%, rgba(139,92,246,.18), transparent 24%),
+    radial-gradient(circle at 100% 0%, rgba(56,189,248,.14), transparent 20%),
+    radial-gradient(circle at 50% 100%, rgba(168,85,247,.08), transparent 22%),
+    linear-gradient(180deg, #0a1020 0%, #070b16 100%);
+}
+body::before,
+body::after {
+  content: '';
+  position: fixed;
+  inset: auto;
+  pointer-events: none;
+  z-index: 0;
+  filter: blur(80px);
+  opacity: .6;
+}
+body::before {
+  width: 260px;
+  height: 260px;
+  top: 72px;
+  left: -60px;
+  background: rgba(139,92,246,.22);
+}
+body::after {
+  width: 300px;
+  height: 300px;
+  right: -80px;
+  bottom: 80px;
+  background: rgba(56,189,248,.14);
+}
+* { scrollbar-width: thin; scrollbar-color: rgba(148,163,184,.35) transparent; }
+*::-webkit-scrollbar { width: 10px; height: 10px; }
+*::-webkit-scrollbar-thumb { background: rgba(148,163,184,.28); border-radius: 999px; }
+*::-webkit-scrollbar-track { background: transparent; }
+
+.app, .main, .sidebar, .topbar, .content, .panel, .card, .login-card, .modal-card, .toast-container { position: relative; z-index: 1; }
+.app {
+  grid-template-columns: 290px 1fr;
+  gap: 22px;
+  padding: 18px;
+  height: 100vh;
+}
+.sidebar {
+  border: 1px solid var(--border);
+  border-radius: 28px;
+  background:
+    linear-gradient(180deg, rgba(15,23,42,.9), rgba(9,14,28,.88)),
+    linear-gradient(135deg, rgba(139,92,246,.12), transparent 50%);
+  box-shadow: var(--shadow-lg);
+  backdrop-filter: blur(18px);
+}
+.sidebar-header {
+  padding: 26px 22px 18px;
+  border-bottom: 1px solid rgba(148,163,184,.12);
+}
+.brand-icon {
+  width: 46px;
+  height: 46px;
+  border-radius: 16px;
+  background: linear-gradient(135deg, #7c3aed 0%, #a855f7 40%, #38bdf8 100%);
+  box-shadow: 0 14px 30px rgba(124,58,237,.32);
+}
+.brand-text h1 { font-size: 18px; font-weight: 800; }
+.brand-text span { font-size: 12px; color: var(--text3); }
+.sidebar-nav { padding: 14px; }
+.nav-label {
+  color: rgba(203,213,225,.48);
+  padding: 16px 12px 8px;
+  font-size: 10px;
+}
+.nav-item {
+  padding: 12px 14px;
+  min-height: 46px;
+  border-radius: 16px;
+  color: var(--text2);
+  border: 1px solid transparent;
+}
+.nav-item:hover {
+  background: rgba(255,255,255,.04);
+  color: var(--text);
+  border-color: rgba(148,163,184,.14);
+}
+.nav-item.active {
+  background: linear-gradient(135deg, rgba(139,92,246,.22), rgba(56,189,248,.12));
+  color: #fff;
+  border-color: rgba(167,139,250,.28);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.05), 0 10px 24px rgba(124,58,237,.18);
+}
+.nav-item .badge-count,
+.nav-item.active .badge-count {
+  background: rgba(255,255,255,.06);
+  color: var(--text2);
+  border: 1px solid rgba(148,163,184,.14);
+}
+.sidebar-footer {
+  border-top: 1px solid rgba(148,163,184,.12);
+  padding: 16px;
+  background: linear-gradient(180deg, transparent, rgba(255,255,255,.02));
+}
+.user-avatar {
+  width: 38px;
+  height: 38px;
+  background: linear-gradient(135deg, rgba(139,92,246,.25), rgba(56,189,248,.22));
+  color: white;
+}
+.main {
+  border-radius: 30px;
+  overflow: auto;
+  background: rgba(2,6,23,.18);
+}
+.topbar {
+  top: 12px;
+  margin: 12px 12px 0;
+  border: 1px solid rgba(148,163,184,.14);
+  border-radius: 24px;
+  padding: 16px 20px;
+  background: rgba(8, 13, 27, .72);
+  box-shadow: var(--shadow);
+}
+.page-title {
+  font-size: 24px;
+  font-weight: 900;
+  background: linear-gradient(135deg, #ffffff 0%, #d8b4fe 44%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.page-subtitle { color: var(--text3); }
+.content {
+  max-width: 1600px;
+  padding: 22px;
+}
+.card, .login-card, .modal-card {
+  background: linear-gradient(180deg, rgba(15,23,42,.9), rgba(9,14,28,.84));
+  border: 1px solid rgba(148,163,184,.14);
+  box-shadow: var(--shadow);
+  backdrop-filter: blur(16px);
+}
+.card {
+  border-radius: 24px;
+  padding: 22px;
+}
+.card-header { margin-bottom: 18px; }
+.card-title { font-size: 16px; font-weight: 800; color: white; }
+.card-sub { color: var(--text3); }
+input, textarea, .select {
+  background: rgba(15,23,42,.8);
+  color: white;
+  border: 1px solid rgba(148,163,184,.16);
+  border-radius: 14px;
+  min-height: 44px;
+}
+input::placeholder, textarea::placeholder { color: #64748b; }
+input:focus, textarea:focus, .select:focus {
+  border-color: rgba(139,92,246,.7);
+  box-shadow: 0 0 0 4px rgba(139,92,246,.12), 0 10px 30px rgba(56,189,248,.08);
+}
+.btn {
+  border-radius: 14px;
+  min-height: 40px;
+  padding: 10px 16px;
+  font-weight: 800;
+  letter-spacing: .01em;
+}
+.btn-primary {
+  background: linear-gradient(135deg, #7c3aed 0%, #8b5cf6 55%, #0ea5e9 100%);
+  box-shadow: 0 16px 32px rgba(124,58,237,.28);
+}
+.btn-primary:hover { box-shadow: 0 22px 40px rgba(124,58,237,.34); }
+.btn-secondary {
+  background: rgba(255,255,255,.05);
+  border: 1px solid rgba(148,163,184,.16);
+  color: white;
+}
+.btn-secondary:hover, .btn-ghost:hover {
+  background: rgba(255,255,255,.07);
+  border-color: rgba(139,92,246,.26);
+  color: white;
+}
+.btn-ghost { color: var(--text2); }
+.btn-danger { box-shadow: 0 12px 24px rgba(239,68,68,.2); }
+.btn-success { box-shadow: 0 12px 24px rgba(34,197,94,.16); }
+.badge {
+  border: 1px solid rgba(255,255,255,.05);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.04);
+}
+.stats-grid { gap: 16px; }
+.stat-card {
+  border-radius: 22px;
+  min-height: 134px;
+  padding: 20px;
+  background:
+    linear-gradient(180deg, rgba(15,23,42,.9), rgba(9,14,28,.82)),
+    linear-gradient(135deg, rgba(139,92,246,.08), transparent 50%);
+  border: 1px solid rgba(148,163,184,.14);
+  box-shadow: var(--shadow);
+}
+.stat-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(circle at top right, rgba(139,92,246,.18), transparent 34%);
+  pointer-events: none;
+}
+.stat-card::after {
+  height: 4px;
+  background: linear-gradient(90deg, #8b5cf6, #06b6d4, #22c55e);
+  opacity: .95;
+}
+.stat-label { color: #94a3b8; }
+.stat-value { color: white; font-size: 32px; }
+.stat-sub { color: #7dd3fc; font-weight: 700; }
+.table-wrap {
+  border-radius: 20px;
+  border: 1px solid rgba(148,163,184,.12);
+  background: rgba(15,23,42,.72);
+}
+th {
+  background: rgba(255,255,255,.04);
+  color: #94a3b8;
+  border-bottom: 1px solid rgba(148,163,184,.12);
+}
+td { border-bottom: 1px solid rgba(148,163,184,.08); color: var(--text2); }
+tbody tr:hover { background: rgba(255,255,255,.03); }
+.toolbar { gap: 10px; }
+.tab {
+  border-radius: 999px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(148,163,184,.12);
+  color: var(--text2);
+}
+.tab.active {
+  background: linear-gradient(135deg, rgba(139,92,246,.9), rgba(14,165,233,.85));
+  border-color: transparent;
+  box-shadow: 0 12px 26px rgba(124,58,237,.24);
+}
+.ev-card {
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(15,23,42,.86), rgba(9,14,28,.8));
+  border: 1px solid rgba(148,163,184,.12);
+}
+.ev-card:hover {
+  border-color: rgba(139,92,246,.34);
+  transform: translateY(-3px);
+  box-shadow: 0 22px 44px rgba(2,6,23,.34);
+}
+.ev-card.selected {
+  border-color: rgba(139,92,246,.55);
+  box-shadow: 0 0 0 1px rgba(139,92,246,.35), 0 22px 48px rgba(124,58,237,.18);
+}
+.ev-name { color: white; font-size: 16px; }
+.ev-id, .card-sub, .pag-info, .form-label, .page-subtitle, .user-role, .warning-box { color: var(--text3); }
+.ev-desc { color: var(--text2); }
+.ev-meta-item, .mini-card, .schedule-block, .country-check, .summary-bar, .floating-actions, .wheel-col {
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(148,163,184,.12);
+  color: var(--text2);
+}
+.summary-bar {
+  background: linear-gradient(135deg, rgba(139,92,246,.12), rgba(14,165,233,.08));
+}
+.summary-bar .main, .summary-bar .chip, .time-preview { color: #c4b5fd; }
+code {
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(148,163,184,.12);
+  color: #cbd5e1;
+}
+.empty {
+  border: 1px dashed rgba(148,163,184,.18);
+  background: rgba(255,255,255,.02);
+  color: var(--text3);
+  border-radius: 18px;
+}
+.pagination { margin-top: 16px; }
+.login-overlay {
+  background: rgba(2,6,23,.72);
+}
+.login-card {
+  width: min(500px, 100%);
+  padding: 34px;
+}
+.login-card h2 {
+  font-size: 26px;
+  background: linear-gradient(135deg, #fff 0%, #d8b4fe 48%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+.login-card .desc, .modal-card p { color: var(--text2); }
+.modal-overlay { background: rgba(2,6,23,.55); }
+.toast {
+  border: 1px solid rgba(255,255,255,.08);
+  backdrop-filter: blur(18px);
+}
+.wheel::before {
+  border-color: rgba(139,92,246,.6);
+  background: rgba(139,92,246,.08);
+}
+.topbar::before, .sidebar::before, .card::before, .login-card::before, .modal-card::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  padding: 1px;
+  background: linear-gradient(135deg, rgba(255,255,255,.18), rgba(255,255,255,0), rgba(139,92,246,.14));
+  -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
+  -webkit-mask-composite: xor;
+  mask-composite: exclude;
+  pointer-events: none;
+}
+.topbar::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(135deg, rgba(139,92,246,.08), transparent 45%, rgba(56,189,248,.05));
+  pointer-events: none;
+}
+@media (max-width: 1100px) {
+  .app {
+    grid-template-columns: 1fr;
+    gap: 0;
+    padding: 12px;
+  }
+  .sidebar {
+    width: 280px;
+    left: -300px;
+    border-radius: 0 28px 28px 0;
+  }
+  .main { border-radius: 24px; }
+  .topbar { margin: 10px 10px 0; }
+  .content { padding: 16px; }
+}
+@media (max-width: 640px) {
+  .stats-grid { grid-template-columns: 1fr; }
+  .page-title { font-size: 20px; }
+  .topbar { padding: 14px; }
+  .card { padding: 16px; border-radius: 20px; }
+}
+</style>
+
+
+<style id="mobile-safari-hotfix">
+:root {
+  --app-height: 100dvh;
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+}
+
+html, body {
+  min-height: 100%;
+  min-height: var(--app-height);
+}
+
+.app {
+  min-height: var(--app-height);
+  height: var(--app-height);
+}
+
+.main,
+.sidebar-nav,
+.drawer,
+.table-wrap,
+.wheel {
+  -webkit-overflow-scrolling: touch;
+}
+
+.table-wrap {
+  overflow-x: auto;
+  overflow-y: auto;
+}
+
+@supports (-webkit-touch-callout: none) {
+  .app {
+    min-height: -webkit-fill-available;
+  }
+
+  .sidebar {
+    height: -webkit-fill-available;
+  }
+}
+
+@media (max-width: 1100px) {
+  html, body {
+    overflow-x: hidden;
+  }
+
+  .app {
+    display: block;
+    min-height: var(--app-height);
+    height: auto;
+    padding: 8px;
+  }
+
+  .main {
+    min-height: calc(var(--app-height) - 16px);
+    overflow: visible;
+    border-radius: 20px;
+  }
+
+  .topbar {
+    position: sticky;
+    top: calc(var(--safe-top) + 8px);
+    margin: 0 0 12px;
+    z-index: 25;
+  }
+
+  .content {
+    padding: 12px 12px calc(20px + var(--safe-bottom));
+  }
+
+  .sidebar {
+    top: 0;
+    left: calc(-1 * min(92vw, 300px) - 24px);
+    width: min(92vw, 300px);
+    height: var(--app-height);
+    max-height: var(--app-height);
+    border-radius: 0 24px 24px 0;
+  }
+
+  .sidebar.open {
+    left: 0;
+  }
+}
+
+@media (max-width: 768px) {
+  body::before,
+  body::after,
+  .topbar::before,
+  .topbar::after,
+  .sidebar::before,
+  .card::before,
+  .login-card::before,
+  .modal-card::before {
+    display: none !important;
+  }
+
+  .main,
+  .sidebar,
+  .topbar,
+  .card,
+  .login-card,
+  .modal-card,
+  .toast {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+
+  .app {
+    padding: 0;
+    background: transparent;
+  }
+
+  .main {
+    border-radius: 0;
+    background: transparent;
+  }
+
+  .topbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    top: 0;
+    margin: 0;
+    border-radius: 0 0 18px 18px;
+    padding: calc(10px + var(--safe-top)) 12px 12px;
+  }
+
+  .topbar-left {
+    width: 100%;
+    min-width: 0;
+    align-items: flex-start;
+  }
+
+  .topbar-left > div {
+    min-width: 0;
+  }
+
+  .page-title {
+    font-size: 18px;
+    line-height: 1.15;
+    word-break: break-word;
+  }
+
+  .page-subtitle {
+    margin-top: 4px;
+  }
+
+  .topbar-actions {
+    width: 100%;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+  }
+
+  .topbar-actions .btn {
+    width: 100%;
+    justify-content: center;
+    min-width: 0;
+    white-space: normal;
+    text-align: center;
+  }
+
+  .content {
+    max-width: none;
+    padding: 12px 12px calc(20px + var(--safe-bottom));
+  }
+
+  .card,
+  .drawer,
+  .ev-card,
+  .stat-card,
+  .table-wrap {
+    border-radius: 18px;
+  }
+
+  .toolbar {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .toolbar > .select,
+  .toolbar > .btn,
+  .toolbar > .grow,
+  .toolbar .search-box {
+    width: 100% !important;
+  }
+
+  .floating-actions {
+    position: sticky;
+    bottom: calc(8px + var(--safe-bottom));
+    flex-wrap: wrap;
+  }
+
+  .floating-actions .btn {
+    flex: 1 1 140px;
+    justify-content: center;
+  }
+
+  .modal-overlay {
+    align-items: flex-end;
+    padding: 8px;
+  }
+
+  .modal-card,
+  .time-modal,
+  .login-card {
+    max-width: none;
+    width: 100%;
+    border-radius: 20px 20px 0 0;
+  }
+
+  .wheel {
+    height: 180px;
+  }
+
+  .toast-container {
+    left: 12px;
+    right: 12px;
+    bottom: calc(12px + var(--safe-bottom));
+  }
+
+  .toast {
+    max-width: none;
+  }
+
+  input,
+  textarea,
+  select,
+  .select,
+  button {
+    font-size: 16px;
+  }
+}
+
+@media (max-width: 480px) {
+  .topbar-actions {
+    grid-template-columns: 1fr;
+  }
+
+  .stats-grid,
+  .mini-cards {
+    grid-template-columns: 1fr;
+  }
+
+  table {
+    min-width: 560px;
+  }
+
+  .brand-text h1 {
+    font-size: 15px;
+    line-height: 1.1;
+  }
+
+  .sidebar-header {
+    padding-top: calc(18px + var(--safe-top));
+  }
+}
+</style>
+
+</head>
+<body>
+<div class="toast-container" id="toastContainer"></div>
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="closeSidebar()"></div>
+
+<div class="app">
+  <!-- Sidebar -->
+  <aside class="sidebar" id="mainSidebar">
+    <div class="sidebar-header">
+      <div class="brand">
+        <div class="brand-icon">🍇</div>
+        <div class="brand-text">
+          <h1>Jelly Follow</h1>
+          <span id="subtitle">Admin panel</span>
+        </div>
+      </div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-label" id="navGroupMain">Main</div>
+      <button class="nav-item active" data-panel="overview" onclick="switchPanel('overview',this)">
+        <span class="icon">📊</span><span id="navOverview">Overview</span>
+        <span class="badge-count" id="countOverview">•</span>
+      </button>
+      <button class="nav-item" data-panel="employees" onclick="switchPanel('employees',this)">
+        <span class="icon">👥</span><span id="navEmployees">Employees</span>
+        <span class="badge-count" id="countEmployees">0</span>
+      </button>
+      <button class="nav-item" data-panel="events" onclick="switchPanel('events',this)">
+        <span class="icon">🎯</span><span id="navEvents">Events</span>
+        <span class="badge-count" id="countEvents">0</span>
+      </button>
+      <button class="nav-item" data-panel="leaderboard" onclick="switchPanel('leaderboard',this)">
+        <span class="icon">🏆</span><span id="navLeaderboard">Leaderboard</span>
+        <span class="badge-count">TOP</span>
+      </button>
+      <div class="nav-label" id="navGroupMonitor">Monitor</div>
+      <button class="nav-item" data-panel="scans" onclick="switchPanel('scans',this)">
+        <span class="icon">📡</span><span id="navScans">Scans</span>
+        <span class="badge-count" id="countScans">0</span>
+      </button>
+      <button class="nav-item" data-panel="logs" onclick="switchPanel('logs',this)">
+        <span class="icon">📋</span><span id="navLogs">Logs</span>
+        <span class="badge-count" id="countLogs">0</span>
+      </button>
+      <div class="nav-label" id="navGroupSystem">System</div>
+      <button class="nav-item" data-panel="admins" onclick="switchPanel('admins',this)">
+        <span class="icon">🛡️</span><span id="navAdmins">Admins</span>
+        <span class="badge-count" id="countAdmins">0</span>
+      </button>
+      <button class="nav-item" data-panel="settings" onclick="switchPanel('settings',this)">
+        <span class="icon">⚙️</span><span id="navSettings">Settings</span>
+        <span class="badge-count">ENV</span>
+      </button>
+    </nav>
+    <div class="sidebar-footer">
+      <div class="user-info" style="cursor:pointer" onclick="openAdminProfile()">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div>
+          <div class="user-name" id="profileChip">Admin</div>
+          <div class="user-role" id="roleChip">—</div>
+        </div>
+      </div>
+      <div class="sidebar-footer-row">
+        <select class="select" id="langSelect" onchange="applyLang()" style="padding:6px 8px;font-size:12px;width:auto">
+          <option value="uz">🇺🇿 UZ</option>
+          <option value="ru">🇷🇺 RU</option>
+        </select>
+        <button class="btn btn-ghost btn-sm" onclick="confirmLogout()" id="logoutBtn">Logout ↗</button>
+      </div>
+    </div>
+  </aside>
+
+  <!-- Main -->
+  <div class="main">
+    <div class="topbar">
+      <div class="topbar-left">
+        <button class="hamburger" onclick="toggleSidebar()" aria-label="Menu">☰</button>
+        <div>
+          <div class="page-title" id="pageTitle">Overview</div>
+          <div class="page-subtitle" id="pageSub"></div>
+        </div>
+      </div>
+      <div class="topbar-actions">
+        <button class="btn btn-secondary btn-sm" onclick="loadAll()" id="refreshBtn">🔄 <span id="refreshBtnInner">Refresh</span></button>
+        <button class="btn btn-primary btn-sm" onclick="goToNewEvent()" id="newEventTopBtn">＋ New event</button>
+      </div>
+    </div>
+
+    <div class="content">
+      <!-- Overview -->
+      <section class="panel active" id="panel-overview">
+        <div class="stats-grid" id="statsCards"></div>
+        <div class="overview-grid">
+          <div class="card">
+            <div class="card-header">
+              <div><div class="card-title" id="recentEventsTitle">Recent events</div></div>
+              <button class="btn btn-ghost btn-sm" onclick="switchToEvents()" id="allEventsBtn">All events →</button>
+            </div>
+            <div class="event-list" id="overviewEvents"></div>
+          </div>
+          <div class="stack">
+            <div class="card">
+              <div class="card-header"><div class="card-title" id="manualTitle">Manual points</div></div>
+              <div class="form-stack">
+                <select class="select" id="manualEmployee"></select>
+                <div class="quick-grid">
+                  <input id="manualPoints" type="number" placeholder="± Points" />
+                  <select class="select" id="manualReason">
+                    <option value="manual_bonus" id="reasonBonus">manual_bonus</option>
+                    <option value="manual_penalty" id="reasonPenalty">manual_penalty</option>
+                  </select>
+                </div>
+                <select class="select" id="manualEvent"></select>
+                <button class="btn btn-primary" onclick="submitManualPoints()" id="manualSubmit" style="width:100%">Submit</button>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title" id="quickInfoTitle">System info</div></div>
+              <div class="stack" id="quickInfo"></div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Employees -->
+      <section class="panel" id="panel-employees">
+        <div class="mini-cards" id="employeeSummary"></div>
+        <div class="toolbar">
+          <div class="search-box grow"><input id="empSearch" placeholder="Qidirish / Поиск" oninput="renderEmployees()" /></div>
+          <select class="select" id="empCountry" onchange="renderEmployees()" style="width:auto"><option value="" id="empCountryAll">All countries</option></select>
+          <select class="select" id="empStatus" onchange="renderEmployees()" style="width:auto">
+            <option value="" id="empStatusAll">All statuses</option>
+            <option value="active">active</option><option value="inactive">inactive</option><option value="blocked">blocked</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="resetEmployeeFilters()" id="empResetBtn">Reset</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr>
+          <th>#</th><th id="thCode">Code</th><th id="thName">Name</th><th id="thCountry">Country</th><th id="thStatus">Status</th><th id="thLastActive">Last active</th><th id="thAction">Action</th>
+        </tr></thead><tbody id="employeesTbody"></tbody></table></div>
+        <div class="pagination" id="empPagination"></div>
+      </section>
+
+      <!-- Events -->
+      <section class="panel" id="panel-events">
+        <div class="event-layout">
+          <div>
+            <div class="mini-cards" id="eventSummary"></div>
+            <div class="toolbar">
+              <div class="search-box grow"><input id="eventSearch" placeholder="Event qidirish / Поиск событий" oninput="renderEvents()" /></div>
+              <select class="select" id="eventCountryFilter" onchange="renderEvents()" style="width:auto">
+                <option value="" id="evCountryAll">All countries</option>
+                <option value="UZ">🇺🇿 UZ</option><option value="RU">🇷🇺 RU</option><option value="KG">🇰🇬 KG</option><option value="AZ">🇦🇿 AZ</option>
+              </select>
+              <select class="select" id="eventSort" onchange="renderEvents()" style="width:auto">
+                <option value="start_desc" id="sortLatest">Latest first</option>
+                <option value="start_asc" id="sortEarliest">Earliest first</option>
+                <option value="name_asc" id="sortNameAZ">Name A–Z</option>
+              </select>
+              <button class="btn btn-secondary btn-sm" onclick="resetEventFilters()" id="eventResetBtn">Reset</button>
+            </div>
+            <div class="tabs" id="eventStatusSeg"></div>
+            <div class="event-list" id="eventsList"></div>
+            <div class="pagination" id="evPagination" style="margin-top:10px"></div>
+          </div>
+          <div class="drawer card">
+            <div class="card-header">
+              <div>
+                <div class="card-title" id="eventFormTitle">Create event</div>
+                <div class="card-sub" id="eventFormSub">Schedule & configure</div>
+              </div>
+              <button class="btn btn-secondary btn-sm" onclick="clearEventForm()" id="clearEventBtn">Clear</button>
+            </div>
+            <div class="form-stack">
+              <input id="eventId" placeholder="Event ID (auto)" readonly style="opacity:.45;font-size:12px;padding:7px 10px" />
+              <div class="form-row">
+                <input id="eventName" placeholder="Event name *" class="form-full" />
+                <div class="form-row" style="grid-column:1/-1">
+                  <input id="eventPool" placeholder="Reward pool" type="number" />
+                  <input id="eventCurrency" placeholder="Currency" value="UZS" />
+                </div>
+              </div>
+              <div class="schedule-row">
+                <div class="schedule-block">
+                  <div class="title" id="scheduleStartTitle">Start</div>
+                  <input id="eventStartDate" type="date" onchange="syncEventDateTime()" />
+                  <button class="time-btn" onclick="openTimePicker('start')" type="button">
+                    <div><small id="scheduleTimeLabel1">Time</small><span id="eventStartTimeLabel">10:00</span></div><span>⏰</span>
+                  </button>
+                </div>
+                <div class="schedule-block">
+                  <div class="title" id="scheduleEndTitle">End</div>
+                  <input id="eventEndDate" type="date" onchange="syncEventDateTime()" />
+                  <button class="time-btn" onclick="openTimePicker('end')" type="button">
+                    <div><small id="scheduleTimeLabel2">Time</small><span id="eventEndTimeLabel">22:00</span></div><span>⏰</span>
+                  </button>
+                </div>
+              </div>
+              <div class="quick-btns">
+                <button class="quick-btn" onclick="quickSchedule('today')" type="button" id="qsToday">Today</button>
+                <button class="quick-btn" onclick="quickSchedule('tomorrow')" type="button" id="qsTomorrow">Tomorrow</button>
+                <button class="quick-btn" onclick="quickSchedule('weekend')" type="button" id="qsWeekend">Weekend</button>
+                <button class="quick-btn" onclick="quickSchedule('7days')" type="button" id="qs7days">+7 days</button>
+              </div>
+              <div class="summary-bar">
+                <div><div class="main" id="eventScheduleSummary">Choose dates and times</div><div class="sub" id="eventScheduleSub">Payload updates automatically.</div></div>
+                <div class="chip" id="eventDurationChip">—</div>
+              </div>
+              <div class="warning-box" id="eventScheduleWarning"></div>
+              <input id="eventStart" type="hidden" /><input id="eventEnd" type="hidden" />
+              <textarea id="eventDescription" placeholder="Description"></textarea>
+              <textarea id="eventRules" placeholder="Rules"></textarea>
+              <div>
+                <span class="form-label" id="eventCountriesTitle">Countries</span>
+                <div class="country-checks" id="countryChecks"></div>
+              </div>
+              <div>
+                <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+                  <span class="form-label" id="rewardsTitle" style="margin:0">Rewards</span>
+                  <button class="btn btn-secondary btn-sm" onclick="addRewardRow()" id="addRewardBtn">＋ Add</button>
+                </div>
+                <div class="reward-list" id="rewardRows"></div>
+              </div>
+              <div class="floating-actions">
+                <button class="btn btn-secondary" onclick="clearEventForm()" id="clearEventBtn2">Clear</button>
+                <button class="btn btn-primary" onclick="saveEvent()" id="saveEventBtn">Save event</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Leaderboard -->
+      <section class="panel" id="panel-leaderboard">
+        <div class="toolbar" style="margin-bottom:14px">
+          <select class="select" id="lbCountry" style="width:auto"></select>
+          <select class="select" id="lbPeriod" style="width:auto">
+            <option value="all" id="lbPeriodAll">Lifetime</option>
+            <option value="today" id="lbPeriodToday">Today</option>
+            <option value="week" id="lbPeriodWeek">This week</option>
+            <option value="month" id="lbPeriodMonth">This month</option>
+          </select>
+          <select class="select grow" id="lbEvent" style="width:auto"></select>
+          <button class="btn btn-primary btn-sm" onclick="loadLeaderboard()" id="lbQueryBtn">Show</button>
+        </div>
+        <div class="table-wrap"><table><thead><tr>
+          <th id="thRank">Rank</th><th id="thLbName">Name</th><th id="thLbCountry">Country</th><th id="thLbPoints">Points</th>
+        </tr></thead><tbody id="leaderboardTbody"></tbody></table></div>
+      </section>
+
+      <!-- Scans -->
+      <section class="panel" id="panel-scans">
+        <div class="toolbar">
+          <div class="search-box grow"><input id="scanSearch" placeholder="Search employee, IP, device" oninput="renderScans()" /></div>
+          <select class="select" id="scanDecisionFilter" onchange="renderScans()" style="width:auto">
+            <option value="" id="scanAll">All decisions</option>
+            <option value="pending" id="scanPending">⏳ Pending</option>
+            <option value="first_unique_device" id="scanUnique">Unique device</option>
+            <option value="duplicate_device" id="scanDuplicate">Duplicate</option>
+            <option value="suspicious" id="scanSuspicious">Suspicious</option>
+            <option value="rejected" id="scanRejected">Rejected</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadScans()">🔄 <span id="scansRefreshLabel">Refresh</span></button>
+        </div>
+        <div class="table-wrap"><table><thead><tr>
+          <th id="thScanTime">Time</th><th id="thScanEmp">Employee</th><th id="thScanDevice">Device key</th><th id="thScanIP">IP</th><th id="thScanDecision">Decision</th><th id="thScanReason">Reason</th><th id="thScanEvent">Event</th><th id="thScanAction">Action</th>
+        </tr></thead><tbody id="scansTbody"></tbody></table></div>
+        <div class="pagination" id="scanPagination" style="margin-top:10px"></div>
+      </section>
+
+      <!-- Logs -->
+      <section class="panel" id="panel-logs">
+        <div class="toolbar">
+          <div class="search-box grow"><input id="logSearch" placeholder="Search action, entity or message" oninput="renderLogs()" /></div>
+          <select class="select" id="logLevelFilter" onchange="renderLogs()" style="width:auto">
+            <option value="" id="logAll">All levels</option>
+            <option value="INFO">INFO</option><option value="WARNING">WARNING</option><option value="ERROR">ERROR</option>
+          </select>
+          <button class="btn btn-secondary btn-sm" onclick="loadLogs()">🔄 <span id="logsRefreshLabel">Refresh</span></button>
+        </div>
+        <div class="table-wrap"><table><thead><tr>
+          <th id="thLogTime">Time</th><th id="thLogLevel">Level</th><th id="thLogAction">Action</th><th id="thLogEntity">Entity</th><th id="thLogMsg">Message</th>
+        </tr></thead><tbody id="logsTbody"></tbody></table></div>
+        <div class="pagination" id="logPagination" style="margin-top:10px"></div>
+      </section>
+
+      <!-- Admins -->
+      <section class="panel" id="panel-admins">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-header"><div class="card-title" id="adminsTitle">Create Admin</div></div>
+            <div class="form-stack">
+              <input id="adminTelegram" placeholder="Telegram user ID *" type="number" />
+              <input id="adminName" placeholder="Full name *" />
+              <input id="adminPhone" placeholder="Phone number" />
+              <select class="select" id="adminRole"><option value="ga">GA</option><option value="super_admin">Super admin</option></select>
+              <button class="btn btn-primary" onclick="createAdmin()" id="createAdminBtn" style="width:100%">Create admin</button>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title" id="adminListTitle">Admin list</div></div>
+            <div class="table-wrap"><table><thead><tr>
+              <th id="thAdminName">Name</th><th id="thAdminTG">TG ID</th><th id="thAdminRole">Role</th><th id="thAdminStatus">Status</th>
+            </tr></thead><tbody id="adminsTbody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Settings -->
+      <section class="panel" id="panel-settings">
+        <div class="grid2">
+          <div class="card">
+            <div class="card-header"><div class="card-title" id="settingsTitle">Environment</div></div>
+            <div class="stack" id="systemSettings"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title" id="countrySettingsTitle">Countries</div></div>
+            <div class="stack" id="countrySettings"></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Event Detail -->
+      <section class="panel" id="panel-event-detail">
+        <div class="stack">
+          <div style="display:flex;justify-content:space-between;gap:10px;align-items:center;flex-wrap:wrap">
+            <button class="btn btn-secondary btn-sm" onclick="switchToEvents()">← <span id="backToEventsLabel">Eventlarga qaytish</span></button>
+            <div style="display:flex;gap:8px;flex-wrap:wrap" id="eventDetailActions"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div><div class="card-title" id="eventDetailTitle">Event</div><div class="card-sub" id="eventDetailSub">Batafsil sahifa</div></div></div>
+            <div class="stack" id="eventDetailHeader"></div>
+          </div>
+          <div class="mini-cards" id="eventDetailStats"></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="card-header"><div class="card-title" id="eventParticipantsTitle">Qatnashuvchilar</div></div>
+              <div class="grid2">
+                <div><div class="card-sub">Accepted</div><div class="stack" id="eventAcceptedList"></div></div>
+                <div><div class="card-sub">Pending</div><div class="stack" id="eventPendingList"></div></div>
+                <div><div class="card-sub">Declined</div><div class="stack" id="eventDeclinedList"></div></div>
+                <div><div class="card-sub">No response</div><div class="stack" id="eventNoResponseList"></div></div>
+              </div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">Leaderboard</div></div>
+              <div style="display:flex;gap:6px;flex-wrap:wrap;padding:0 16px 8px" id="eventLbCountryTabs"></div>
+              <div class="table-wrap"><table><thead><tr><th>#</th><th>Xodim</th><th>Mamlakat</th><th>Ball</th></tr></thead><tbody id="eventLeaderboardTbody"></tbody></table></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Recent scans</div></div>
+            <div class="table-wrap"><table><thead><tr><th>Vaqt</th><th>Xodim</th><th>Qurilma</th><th>IP</th><th>Qaror</th><th>Sabab</th><th>Amal</th></tr></thead><tbody id="eventScansTbody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Employee Detail -->
+      <section class="panel" id="panel-employee-detail">
+        <div class="stack">
+          <div><button class="btn btn-secondary btn-sm" onclick="switchPanel('employees',document.querySelector('.nav-item[data-panel='employees']'))">← <span id="backToEmployeesLabel">Xodimlarga qaytish</span></button></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="card-header"><div><div class="card-title" id="employeeDetailTitle">Xodim</div><div class="card-sub">Profil va QR</div></div></div>
+              <div class="stack" id="employeeDetailHeader"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">Statistika</div></div>
+              <div class="mini-cards" id="employeeDetailStats"></div>
+            </div>
+          </div>
+          <div class="grid2">
+            <div class="card">
+              <div class="card-header"><div class="card-title">QR va linklar</div></div>
+              <div class="stack" id="employeeQrList"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">Event qatnashuvi</div></div>
+              <div class="table-wrap"><table><thead><tr><th>Event</th><th>Event status</th><th>Qatnashuv</th><th>Vaqt</th></tr></thead><tbody id="employeeParticipationTbody"></tbody></table></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Recent scans</div></div>
+            <div class="table-wrap"><table><thead><tr><th>Vaqt</th><th>Event</th><th>Qurilma</th><th>IP</th><th>Qaror</th><th>Sabab</th><th>Amal</th></tr></thead><tbody id="employeeScansTbody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Admin Profile -->
+      <section class="panel" id="panel-admin-profile">
+        <div class="stack">
+          <div><button class="btn btn-secondary btn-sm" onclick="switchPanel('overview',document.querySelector('.nav-item[data-panel='overview']'))">← <span id="backToOverviewLabel">Umumiyga qaytish</span></button></div>
+          <div class="grid2">
+            <div class="card">
+              <div class="card-header"><div><div class="card-title" id="adminProfileTitle">Admin kabineti</div><div class="card-sub">Shaxsiy ma'lumotlar</div></div></div>
+              <div class="stack" id="adminProfileHeader"></div>
+            </div>
+            <div class="card">
+              <div class="card-header"><div class="card-title">Tizim snapshot</div></div>
+              <div class="mini-cards" id="adminProfileStats"></div>
+            </div>
+          </div>
+          <div class="card">
+            <div class="card-header"><div class="card-title">Faol sessiyalar</div></div>
+            <div class="table-wrap"><table><thead><tr><th>Qurilma</th><th>Rol</th><th>IP</th><th>Yaratilgan</th><th>Oxirgi faollik</th></tr></thead><tbody id="adminSessionsTbody"></tbody></table></div>
+          </div>
+        </div>
+      </section>
+    </div>
+  </div>
+</div>
+
+<!-- Login Overlay -->
+<div class="login-overlay hidden" id="loginOverlay">
+  <div class="login-card">
+    <div style="text-align:center;margin-bottom:16px"><div class="brand-icon" style="margin:0 auto;width:48px;height:48px;font-size:24px;border-radius:14px">🍇</div></div>
+    <h2 id="loginTitle" style="text-align:center">Telegram admin login</h2>
+    <p class="desc" id="loginText" style="text-align:center">Enter your Telegram ID and approve the login inside the bot.</p>
+    <div class="form-stack">
+      <input id="loginTelegramId" placeholder="Telegram ID" type="number" />
+      <input id="loginDevice" placeholder="Qurilma / Устройство" value="Web Admin" />
+      <button class="btn btn-primary" onclick="startLogin()" id="loginBtn" style="width:100%">Send request</button>
+      <div style="text-align:center;min-height:18px;font-size:12px;color:var(--text3)" id="loginStatus"></div>
+    </div>
+  </div>
+</div>
+
+<!-- Time Picker Modal -->
+<div class="modal-overlay hidden" id="timePickerModal" onclick="closeTimePicker(event)">
+  <div class="modal-card time-modal" onclick="event.stopPropagation()">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div><h3 id="timePickerTitle">Select time</h3><div class="card-sub" id="timePickerSub">Scroll to choose</div></div>
+      <button class="btn btn-ghost btn-sm" type="button" onclick="hideTimePicker()">✕</button>
+    </div>
+    <div class="wheel-grid">
+      <div class="wheel-col"><div class="title" id="wheelHourTitle">Soat</div><div class="wheel" id="hourWheel"></div></div>
+      <div class="wheel-col"><div class="title" id="wheelMinuteTitle">Daqiqa</div><div class="wheel" id="minuteWheel"></div></div>
+    </div>
+    <div class="time-footer">
+      <div class="time-preview" id="timePickerPreview">10:00</div>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-secondary" type="button" onclick="hideTimePicker()" id="timePickerCancelBtn">Bekor qilish</button>
+        <button class="btn btn-primary" type="button" onclick="applyPickedTime()" id="applyTimeBtn">✓ Apply</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Confirm Modal -->
+<div class="modal-overlay hidden" id="confirmModal">
+  <div class="modal-card">
+    <h3 id="confirmTitle">Are you sure?</h3>
+    <p id="confirmText">This action cannot be undone.</p>
+    <div class="modal-actions">
+      <button class="btn btn-secondary" onclick="closeConfirm()" id="confirmCancelBtn">Cancel</button>
+      <button class="btn btn-danger" onclick="doConfirm()" id="confirmOkBtn">Confirm</button>
+    </div>
+  </div>
+</div>
+
+<script>
+/* ════════════════════════════════════════════════════════════════
+   TRANSLATIONS
+   ════════════════════════════════════════════════════════════════ */
+const LANGS = {
+  en: {
+    subtitle:'Admin panel', overview:'Overview', employees:'Employees', events:'Events', leaderboard:'Leaderboard', scans:'Scans', logs:'Logs', admins:'Admins', settings:'Settings', logout:'Logout',
+    refresh:'Refresh', newEvent:'＋ New event', manual:'Manual points', quickInfo:'System info', recentEvents:'Recent events', openEvents:'All events →', eventForm:'Create event', eventFormSub:'Schedule & configure', rewards:'Rewards', addReward:'＋ Add', saveEvent:'Save event', clear:'Clear', show:'Show',
+    loginTitle:'Telegram admin login', loginText:'Enter your Telegram ID and approve the login inside the bot.', loginBtn:'Send request',
+    scheduleStart:'Start', scheduleEnd:'End', scheduleTime:'Time', applyTime:'✓ Apply', cancel:'Cancel', confirm:'Confirm', areYouSure:'Are you sure?', cannotUndo:'This action cannot be undone.', logoutConfirm:'Do you really want to log out?', finishConfirm:'Finish this event? This cannot be undone.',
+    noEvents:'No events yet', nothingFound:'Nothing found', noData:'No data', noAdmins:'No admins',
+    statEmployees:'Employees', statPoints:'Points', statScans:'Scans', statUnique:'Unique', statDuplicates:'Duplicates', statEvents:'Events', statActive:'active', statAllTime:'all time', statLogged:'logged scans', statAwarded:'awarded devices', statDuplicateAtt:'duplicate attempts',
+    colCode:'Code', colName:'Name', colCountry:'Country', colStatus:'Status', colLastActive:'Last active', colAction:'Action', colRank:'Rank', colPoints:'Points', colTime:'Time', colEmployee:'Employee', colDevice:'Device key', colIP:'IP', colDecision:'Decision', colEvent:'Event', colLevel:'Level', colMsgAction:'Action', colEntity:'Entity', colMessage:'Message', colTgId:'TG ID', colRole:'Role',
+    allCountries:'All countries', allStatuses:'All statuses', allDecisions:'All decisions', allLevels:'All levels', allEvents:'All events', allLabel:'All', lifetime:'Lifetime', today:'Today', thisWeek:'This week', thisMonth:'This month', latestFirst:'Latest first', earliestFirst:'Earliest first', nameAZ:'Name A–Z',
+    segAll:'All', segActive:'Active', segDraft:'Draft', segPaused:'Paused', segFinished:'Finished', statusActive:'active', statusInactive:'inactive', statusBlocked:'blocked', statusDraft:'draft', statusPaused:'paused', statusFinished:'finished', badgeUnique:'unique', badgeDuplicate:'duplicate', badgeSuspicious:'suspicious', badgeRejected:'rejected', badgeApprovedManual:'manually approved', pendingJsNotFired:'JS did not load', pendingNoDevice:'No device data', pendingIncomplete:'Processing incomplete', pendingFpOnly:'Fingerprint only', pendingUnknown:'Unknown', scanApproveConfirm:'Approve this scan? Point will be awarded.', scanRejectConfirm:'Reject this scan? No point will be given.', colReason:'Reason', scanPendingFilter:'Pending', phasePast:'Past', phaseUpcoming:'Upcoming', phasePlanned:'Planned', changeStatus:'Change status', adminList:'Admin list', navMain:'Main', navMonitor:'Monitor', navSystem:'System',
+    changeLabel:'— Change —', noEmployee:'— Choose employee —', noEventOpt:'— No event —', submitManual:'Submit', chooseDates:'Choose dates and times', payloadAuto:'Payload updates automatically.', countries:'Countries', countriesHint:'Choose where this event should be active.', eventId:'Event ID (auto on edit)', eventNamePh:'Event name *', poolPh:'Reward pool', currencyPh:'Currency', descPh:'Description', rulesPh:'Rules', qToday:'Today', qTomorrow:'Tomorrow', qWeekend:'Weekend', q7days:'+7 days', save:'Save', hourLabel:'Hour', minuteLabel:'Minute', selectTime:'Select time', scrollChoose:'Scroll to choose', scansRefresh:'Refresh', logsRefresh:'Refresh', page:'Page', of:'of',
+    reasonBonus:'manual_bonus', reasonPenalty:'manual_penalty', alertEmpPoints:'Please choose an employee and enter points', alertEventRequired:'Event name, start and end are required', alertAdminRequired:'Telegram ID and name are required', savedOk:'Saved successfully ✓', errorOccurred:'An error occurred', pointsAdded:'Points added successfully ✓', adminCreated:'Admin created ✓', statusChanged:'Status changed ✓', countryUpdated:'Country settings updated ✓', eventActivated:'Event activated ✓', eventPaused:'Event paused ✓', eventFinished:'Event finished', loginWaiting:'Waiting for approval in Telegram...', loginExpired:'Request expired.', loginTimeout:'Timeout.',
+    createAdmin:'Create admin', environment:'Environment', searchEmployees:'Search by name or code', searchEvents:'Search events', eventDraft:'Draft', eventFinishedLabel:'Finished', telegramRequired:'Telegram ID required', webAdmin:'Web Admin', deviceLabel:'Device label', backEvents:'Back to events', backEmployees:'Back to employees', backOverview:'Back to overview', eventDetails:'Event details', employeeDetails:'Employee details', adminCabinet:'Admin cabinet', openLabel:'Open', deleteEvent:'Delete event', deleteEventConfirm:'Delete this event?', acceptedLabel:'Accepted', pendingLabel:'Pending', declinedLabel:'Declined', noResponseLabel:'No response', activeSessions:'Active sessions', participantsLabel:'Participants', qrLinks:'QR and links', recentScansTitle:'Recent scans', systemSnapshot:'System snapshot', historyProtected:'Event has analytics history and cannot be deleted', activeSessionsNote:'Active sessions on this server'
+  },
+  uz: {
+    subtitle:'Admin panel', overview:'Umumiy', employees:'Xodimlar', events:'Eventlar', leaderboard:'Reyting', scans:'Skanlar', logs:'Loglar', admins:'Adminlar', settings:'Sozlamalar', logout:'Chiqish',
+    refresh:'Yangilash', newEvent:'＋ Yangi event', manual:'Qo\'lda ball', quickInfo:'Tizim ma\'lumoti', recentEvents:'So\'nggi eventlar', openEvents:'Eventlarni ochish →', eventForm:'Event yaratish', eventFormSub:'Jadval va sozlash', rewards:'Mukofotlar', addReward:'＋ Qo\'shish', saveEvent:'Saqlash', clear:'Tozalash', show:'Ko\'rsatish',
+    loginTitle:'Telegram orqali kirish', loginText:'Telegram ID kiriting va bot ichida tasdiqlang.', loginBtn:'So\'rov yuborish', scheduleStart:'Boshlanish', scheduleEnd:'Tugash', scheduleTime:'Vaqt', applyTime:'✓ Qo\'llash', cancel:'Bekor qilish', confirm:'Tasdiqlash', areYouSure:'Ishonchingiz komilmi?', cannotUndo:'Bu amalni qaytarib bo\'lmaydi.', logoutConfirm:'Haqiqatan chiqmoqchimisiz?', finishConfirm:'Eventni yakunlash? Bu qaytarib bo\'lmaydi.',
+    noEvents:'Hali eventlar yo\'q', nothingFound:'Hech narsa topilmadi', noData:'Ma\'lumot yo\'q', noAdmins:'Adminlar yo\'q', statEmployees:'Xodimlar', statPoints:'Ballar', statScans:'Skanlar', statUnique:'Noyob', statDuplicates:'Takrorlar', statEvents:'Eventlar', statActive:'faol', statAllTime:'barcha vaqt', statLogged:'qayd etilgan skanlar', statAwarded:'mukofotlangan qurilmalar', statDuplicateAtt:'takror urinishlar',
+    colCode:'Kod', colName:'Ism', colCountry:'Mamlakat', colStatus:'Holat', colLastActive:'Oxirgi faollik', colAction:'Amal', colRank:'O\'rin', colPoints:'Ballar', colTime:'Vaqt', colEmployee:'Xodim', colDevice:'Qurilma kaliti', colIP:'IP', colDecision:'Qaror', colEvent:'Event', colLevel:'Daraja', colMsgAction:'Amal', colEntity:'Ob\'ekt', colMessage:'Xabar', colTgId:'TG ID', colRole:'Rol',
+    allCountries:'Barcha mamlakatlar', allStatuses:'Barcha holatlar', allDecisions:'Barcha qarorlar', allLevels:'Barcha darajalar', allEvents:'Barcha eventlar', allLabel:'Barchasi', lifetime:'Barcha vaqt', today:'Bugun', thisWeek:'Shu hafta', thisMonth:'Shu oy', latestFirst:'Avval yangi', earliestFirst:'Avval eski', nameAZ:'Nom A–Z', segAll:'Barchasi', segActive:'Faol', segDraft:'Qoralama', segPaused:'To\'xtatilgan', segFinished:'Tugagan', statusActive:'faol', statusInactive:'nofaol', statusBlocked:'bloklangan', statusDraft:'qoralama', statusPaused:'to\'xtatilgan', statusFinished:'tugagan', badgeUnique:'noyob', badgeDuplicate:'takror', badgeSuspicious:'shubhali', badgeRejected:'rad etilgan', badgeApprovedManual:'qo\'lda tasdiqlangan', pendingJsNotFired:'JS ishlamagan', pendingNoDevice:'Qurilma ma\'lumoti yo\'q', pendingIncomplete:'Jarayon yakunlanmagan', pendingFpOnly:'Faqat fingerprint', pendingUnknown:'Noma\'lum', scanApproveConfirm:'Tasdiqlaysizmi? Ball beriladi.', scanRejectConfirm:'Rad etasizmi? Ball berilmaydi.', colReason:'Sabab', scanPendingFilter:'Kutilmoqda', phaseNow:'Hozir', phasePast:'O\'tgan', phaseUpcoming:'Kutilmoqda', phasePlanned:'Rejalashtirilgan', changeStatus:'Holatni o\'zgartirish', adminList:'Admin ro\'yxati', navMain:'Asosiy', navMonitor:'Kuzatish', navSystem:'Tizim',
+    changeLabel:'— O\'zgartirish —', noEmployee:'— Xodimni tanlang —', noEventOpt:'— Event yo\'q —', submitManual:'Yuborish', chooseDates:'Sanalar va vaqtni tanlang', payloadAuto:'Ma\'lumot avtomatik yangilanadi.', countries:'Mamlakatlar', countriesHint:'Bu event qaysi mamlakatlarda faol bo\'lishini tanlang.', eventId:'Event ID (tahrirlashda avtomatik)', eventNamePh:'Event nomi *', poolPh:'Mukofot fondi', currencyPh:'Valyuta', descPh:'Tavsif', rulesPh:'Qoidalar', qToday:'Bugun', qTomorrow:'Ertaga', qWeekend:'Dam olish kuni', q7days:'+7 kun', save:'Saqlash', hourLabel:'Soat', minuteLabel:'Daqiqa', selectTime:'Vaqtni tanlang', scrollChoose:'Aylantiring', scansRefresh:'Yangilash', logsRefresh:'Yangilash', page:'Sahifa', of:'/',
+    reasonBonus:'qo\'lda bonus', reasonPenalty:'qo\'lda jarima', alertEmpPoints:'Xodim va ballarni kiriting', alertEventRequired:'Event nomi, boshlanish va tugash vaqti kerak', alertAdminRequired:'Telegram ID va ism kiritilishi kerak', savedOk:'Muvaffaqiyatli saqlandi ✓', errorOccurred:'Xatolik yuz berdi', pointsAdded:'Ballar muvaffaqiyatli qo\'shildi ✓', adminCreated:'Admin yaratildi ✓', statusChanged:'Holat o\'zgartirildi ✓', countryUpdated:'Mamlakat sozlamalari yangilandi ✓', eventActivated:'Event faollashtirildi ✓', eventPaused:'Event to\'xtatildi ✓', eventFinished:'Event yakunlandi', loginWaiting:'Telegramda tasdiqlash kutilmoqda...', loginExpired:'So\'rov muddati tugadi.', loginTimeout:'Vaqt tugadi.',
+    createAdmin:'Admin yaratish', environment:'Muhit', searchEmployees:'Ism yoki kod bo\'yicha qidirish', searchEvents:'Event qidirish', eventDraft:'Qoralama', eventFinishedLabel:'Tugagan', telegramRequired:'Telegram ID kiriting', webAdmin:'Web Admin', deviceLabel:'Qurilma nomi', backEvents:'Eventlarga qaytish', backEmployees:'Xodimlarga qaytish', backOverview:'Umumiyga qaytish', eventDetails:'Event batafsil', employeeDetails:'Xodim sahifasi', adminCabinet:'Admin kabineti', openLabel:'Ochish', deleteEvent:'Eventni o\'chirish', deleteEventConfirm:'Bu eventni o\'chirasizmi?', acceptedLabel:'Qatnashmoqda', pendingLabel:'Kutilmoqda', declinedLabel:'Rad etganlar', noResponseLabel:'Hali javob bermaganlar', activeSessions:'Faol sessiyalar', participantsLabel:'Qatnashuvchilar', qrLinks:'QR va linklar', recentScansTitle:'So\'nggi skanlar', systemSnapshot:'Tizim snapshot', historyProtected:'Bu eventda tarix bor, o\'chirib bo\'lmaydi', activeSessionsNote:'Faqat shu serverdagi sessiyalar'
+  },
+  ru: {
+    subtitle:'Панель администратора', overview:'Обзор', employees:'Сотрудники', events:'События', leaderboard:'Рейтинг', scans:'Сканы', logs:'Логи', admins:'Админы', settings:'Настройки', logout:'Выйти', refresh:'Обновить', newEvent:'＋ Новое событие', manual:'Ручные баллы', quickInfo:'Системная информация', recentEvents:'Последние события', openEvents:'Все события →', eventForm:'Создание события', eventFormSub:'Расписание и настройка', rewards:'Награды', addReward:'＋ Добавить', saveEvent:'Сохранить', clear:'Очистить', show:'Показать', loginTitle:'Вход через Telegram', loginText:'Введите Telegram ID и подтвердите вход в боте.', loginBtn:'Отправить запрос', scheduleStart:'Начало', scheduleEnd:'Конец', scheduleTime:'Время', applyTime:'✓ Применить', cancel:'Отмена', confirm:'Подтвердить', areYouSure:'Вы уверены?', cannotUndo:'Это действие нельзя отменить.', logoutConfirm:'Действительно хотите выйти?', finishConfirm:'Завершить событие? Это нельзя отменить.', noEvents:'Событий нет', nothingFound:'Ничего не найдено', noData:'Нет данных', noAdmins:'Нет администраторов', statEmployees:'Сотрудники', statPoints:'Баллы', statScans:'Сканы', statUnique:'Уникальные', statDuplicates:'Дубликаты', statEvents:'События', statActive:'активные', statAllTime:'за всё время', statLogged:'зарегистрированных сканов', statAwarded:'устройств с наградой', statDuplicateAtt:'попыток дубликатов',
+    colCode:'Код', colName:'Имя', colCountry:'Страна', colStatus:'Статус', colLastActive:'Последняя активность', colAction:'Действие', colRank:'Место', colPoints:'Баллы', colTime:'Время', colEmployee:'Сотрудник', colDevice:'Ключ устройства', colIP:'IP', colDecision:'Решение', colEvent:'Событие', colLevel:'Уровень', colMsgAction:'Действие', colEntity:'Сущность', colMessage:'Сообщение', colTgId:'TG ID', colRole:'Роль', allCountries:'Все страны', allStatuses:'Все статусы', allDecisions:'Все решения', allLevels:'Все уровни', allEvents:'Все события', allLabel:'Все', lifetime:'За всё время', today:'Сегодня', thisWeek:'Эта неделя', thisMonth:'Этот месяц', latestFirst:'Сначала новые', earliestFirst:'Сначала старые', nameAZ:'Имя А–Я', segAll:'Все', segActive:'Активные', segDraft:'Черновики', segPaused:'Приостановленные', segFinished:'Завершённые', statusActive:'активный', statusInactive:'неактивный', statusBlocked:'заблокированный', statusDraft:'черновик', statusPaused:'приостановлен', statusFinished:'завершён', badgeUnique:'уникальный', badgeDuplicate:'дубликат', badgeSuspicious:'подозрительный', badgeRejected:'отклонён', badgeApprovedManual:'подтверждён вручную', pendingJsNotFired:'JS не загрузился', pendingNoDevice:'Нет данных устройства', pendingIncomplete:'Обработка не завершена', pendingFpOnly:'Только fingerprint', pendingUnknown:'Неизвестно', scanApproveConfirm:'Подтвердить скан? Балл будет начислен.', scanRejectConfirm:'Отклонить скан? Балл не будет начислен.', colReason:'Причина', scanPendingFilter:'Ожидание', phaseNow:'Сейчас', phasePast:'Прошлое', phaseUpcoming:'Скоро', phasePlanned:'Запланировано', changeStatus:'Изменить статус', adminList:'Список администраторов', navMain:'Основное', navMonitor:'Мониторинг', navSystem:'Система',
+    changeLabel:'— Изменить —', noEmployee:'— Выберите сотрудника —', noEventOpt:'— Без события —', submitManual:'Отправить', chooseDates:'Выберите даты и время', payloadAuto:'Данные обновляются автоматически.', countries:'Страны', countriesHint:'Выберите страны.', eventId:'ID события (авто)', eventNamePh:'Название события *', poolPh:'Призовой фонд', currencyPh:'Валюта', descPh:'Описание', rulesPh:'Правила', qToday:'Сегодня', qTomorrow:'Завтра', qWeekend:'Выходные', q7days:'+7 дней', save:'Сохранить', hourLabel:'Час', minuteLabel:'Минута', selectTime:'Выберите время', scrollChoose:'Прокрутите', scansRefresh:'Обновить', logsRefresh:'Обновить', page:'Страница', of:'из', reasonBonus:'ручной бонус', reasonPenalty:'ручной штраф', alertEmpPoints:'Выберите сотрудника и введите баллы', alertEventRequired:'Название, время начала и окончания обязательны', alertAdminRequired:'Telegram ID и имя обязательны', savedOk:'Сохранено ✓', errorOccurred:'Произошла ошибка', pointsAdded:'Баллы добавлены ✓', adminCreated:'Администратор создан ✓', statusChanged:'Статус изменён ✓', countryUpdated:'Настройки обновлены ✓', eventActivated:'Событие активировано ✓', eventPaused:'Событие приостановлено ✓', eventFinished:'Событие завершено', loginWaiting:'Ожидание подтверждения...', loginExpired:'Запрос истёк.', loginTimeout:'Время истекло.',
+    createAdmin:'Создать админа', environment:'Окружение'
+  },
+  kg: {
+    subtitle:'Админ панели', overview:'Жалпы', employees:'Кызматкерлер', events:'Иш-чаралар', leaderboard:'Рейтинг', scans:'Скандар', logs:'Логдор', admins:'Админдер', settings:'Жөндөөлөр', logout:'Чыгуу', refresh:'Жаңылоо', newEvent:'＋ Жаңы иш-чара', manual:'Кол менен упай', quickInfo:'Тутум маалыматы', recentEvents:'Акыркы иш-чаралар', openEvents:'Бардык иш-чаралар →', eventForm:'Иш-чара түзүү', eventFormSub:'Жадыбал жана жөндөө', rewards:'Сыйлыктар', addReward:'＋ Кошуу', saveEvent:'Сактоо', clear:'Тазалоо', show:'Көрсөтүү', loginTitle:'Telegram аркылуу кирүү', loginText:'Telegram ID киргизип, боттон тастыктаңыз.', loginBtn:'Суроо жөнөтүү', scheduleStart:'Башталышы', scheduleEnd:'Аягы', scheduleTime:'Убакыт', applyTime:'✓ Колдонуу', cancel:'Жок кылуу', confirm:'Тастыктоо', areYouSure:'Ишенесизби?', cannotUndo:'Бул аракетти кайтарып болбойт.', logoutConfirm:'Чыгууну каалайсызбы?', finishConfirm:'Иш-чараны аяктоо?', noEvents:'Иш-чаралар жок', nothingFound:'Табылган жок', noData:'Маалымат жок', noAdmins:'Админдер жок', statEmployees:'Кызматкерлер', statPoints:'Упайлар', statScans:'Скандар', statUnique:'Уникалдуу', statDuplicates:'Кайталанган', statEvents:'Иш-чаралар', statActive:'активдүү', statAllTime:'баары', statLogged:'катталган скандар', statAwarded:'сыйлыкталган', statDuplicateAtt:'кайталанган',
+    colCode:'Код', colName:'Аты', colCountry:'Мамлекет', colStatus:'Абал', colLastActive:'Акыркы', colAction:'Аракет', colRank:'Орун', colPoints:'Упайлар', colTime:'Убакыт', colEmployee:'Кызматкер', colDevice:'Түзмөк', colIP:'IP', colDecision:'Чечим', colEvent:'Иш-чара', colLevel:'Деңгээл', colMsgAction:'Аракет', colEntity:'Объект', colMessage:'Кабар', colTgId:'TG ID', colRole:'Роль', allCountries:'Бардык', allStatuses:'Бардык абалдар', allDecisions:'Бардык чечимдер', allLevels:'Бардык', allEvents:'Бардык иш-чаралар', allLabel:'Бардыгы', lifetime:'Баары', today:'Бүгүн', thisWeek:'Бул жума', thisMonth:'Бул ай', latestFirst:'Жаңысы', earliestFirst:'Эскиси', nameAZ:'Аты А–Я', segAll:'Бардыгы', segActive:'Активдүү', segDraft:'Долбоор', segPaused:'Токтотулган', segFinished:'Аяктаган', statusActive:'активдүү', statusInactive:'активдүү эмес', statusBlocked:'бөгөттөлгөн', statusDraft:'долбоор', statusPaused:'токтотулган', statusFinished:'аяктаган', badgeUnique:'уникалдуу', badgeDuplicate:'кайталанган', badgeSuspicious:'шектүү', badgeRejected:'четке кагылган', badgeApprovedManual:'кол менен тастыкталган', pendingJsNotFired:'JS жүктөлгөн жок', pendingNoDevice:'Түзмөк маалыматы жок', pendingIncomplete:'Иштөө аякталган жок', pendingFpOnly:'Fingerprint гана', pendingUnknown:'Белгисиз', scanApproveConfirm:'Тастыктайсызбы? Упай берилет.', scanRejectConfirm:'Четке кагасызбы? Упай берилбейт.', colReason:'Себеп', scanPendingFilter:'Күтүүдө', phaseNow:'Азыр', phasePast:'Өткөн', phaseUpcoming:'Күтүлүүдө', phasePlanned:'Пландалган', changeStatus:'Абалды өзгөртүү', adminList:'Админдер тизмеси', navMain:'Негизги', navMonitor:'Мониторинг', navSystem:'Система', changeLabel:'— Өзгөртүү —', noEmployee:'— Тандаңыз —', noEventOpt:'— Жок —', submitManual:'Жөнөтүү', chooseDates:'Тандаңыз', payloadAuto:'Автоматтык жаңыланат.', countries:'Мамлекеттер', countriesHint:'Тандаңыз.', eventId:'ID (авто)', eventNamePh:'Аты *', poolPh:'Сыйлык', currencyPh:'Валюта', descPh:'Сүрөттөмө', rulesPh:'Эрежелер', qToday:'Бүгүн', qTomorrow:'Эртең', qWeekend:'Дем алыш', q7days:'+7 күн', save:'Сактоо', hourLabel:'Саат', minuteLabel:'Мүнөт', selectTime:'Убакыт', scrollChoose:'Айлантыңыз', scansRefresh:'Жаңылоо', logsRefresh:'Жаңылоо', page:'Бет', of:'/', reasonBonus:'бонус', reasonPenalty:'айып', alertEmpPoints:'Тандаңыз жана упай', alertEventRequired:'Аты жана убакыт зарыл', alertAdminRequired:'ID жана аты зарыл', savedOk:'Сакталды ✓', errorOccurred:'Ката', pointsAdded:'Кошулду ✓', adminCreated:'Түзүлдү ✓', statusChanged:'Өзгөртүлдү ✓', countryUpdated:'Жаңыланды ✓', eventActivated:'Активдештирилди ✓', eventPaused:'Токтотулду ✓', eventFinished:'Аяктады', loginWaiting:'Тастыктоо күтүлүүдө...', loginExpired:'Мөөнөтү бүттү.', loginTimeout:'Убакыт бүттү.',
+    createAdmin:'Админ түзүү', environment:'Тутум'
+  },
+  az: {
+    subtitle:'Admin paneli', overview:'Ümumi', employees:'İşçilər', events:'Tədbirlər', leaderboard:'Reytinq', scans:'Skanlar', logs:'Loqlar', admins:'Adminlər', settings:'Ayarlar', logout:'Çıxış', refresh:'Yenilə', newEvent:'＋ Yeni tədbir', manual:'Əllə bal', quickInfo:'Sistem məlumatı', recentEvents:'Son tədbirlər', openEvents:'Bütün tədbirlər →', eventForm:'Tədbir yarat', eventFormSub:'Cədvəl və tənzimləmə', rewards:'Mükafatlar', addReward:'＋ Əlavə et', saveEvent:'Yadda saxla', clear:'Təmizlə', show:'Göstər', loginTitle:'Telegram admin girişi', loginText:'Telegram ID daxil edin və botda təsdiqləyin.', loginBtn:'Sorğu göndər', scheduleStart:'Başlanğıc', scheduleEnd:'Son', scheduleTime:'Saat', applyTime:'✓ Tətbiq et', cancel:'Ləğv et', confirm:'Təsdiq', areYouSure:'Əminsinizmi?', cannotUndo:'Bu əməliyyat geri alına bilməz.', logoutConfirm:'Çıxmaq istəyirsiniz?', finishConfirm:'Tədbiri bitirmək?', noEvents:'Tədbir yoxdur', nothingFound:'Tapılmadı', noData:'Məlumat yoxdur', noAdmins:'Admin yoxdur', statEmployees:'İşçilər', statPoints:'Ballar', statScans:'Skanlar', statUnique:'Unikal', statDuplicates:'Dublikatlar', statEvents:'Tədbirlər', statActive:'aktiv', statAllTime:'bütün vaxt', statLogged:'qeydə alınmış', statAwarded:'mükafatlandırılmış', statDuplicateAtt:'dublikat cəhdlər',
+    colCode:'Kod', colName:'Ad', colCountry:'Ölkə', colStatus:'Status', colLastActive:'Son aktivlik', colAction:'Əməliyyat', colRank:'Yer', colPoints:'Ballar', colTime:'Vaxt', colEmployee:'İşçi', colDevice:'Cihaz açarı', colIP:'IP', colDecision:'Qərar', colEvent:'Tədbir', colLevel:'Səviyyə', colMsgAction:'Əməliyyat', colEntity:'Obyekt', colMessage:'Mesaj', colTgId:'TG ID', colRole:'Rol', allCountries:'Bütün ölkələr', allStatuses:'Bütün statuslar', allDecisions:'Bütün qərarlar', allLevels:'Bütün', allEvents:'Bütün tədbirlər', allLabel:'Hamısı', lifetime:'Bütün vaxt', today:'Bu gün', thisWeek:'Bu həftə', thisMonth:'Bu ay', latestFirst:'Yeni əvvəl', earliestFirst:'Köhnə əvvəl', nameAZ:'Ad A–Z', segAll:'Hamısı', segActive:'Aktiv', segDraft:'Qaralama', segPaused:'Dayandırılmış', segFinished:'Bitmiş', statusActive:'aktiv', statusInactive:'qeyri-aktiv', statusBlocked:'bloklanmış', statusDraft:'qaralama', statusPaused:'dayandırılmış', statusFinished:'bitmiş', badgeUnique:'unikal', badgeDuplicate:'dublikat', badgeSuspicious:'şübhəli', badgeRejected:'rədd edildi', badgeApprovedManual:'əllə təsdiqləndi', pendingJsNotFired:'JS yüklənmədi', pendingNoDevice:'Cihaz məlumatı yoxdur', pendingIncomplete:'İşləmə tamamlanmadı', pendingFpOnly:'Yalnız fingerprint', pendingUnknown:'Naməlum', scanApproveConfirm:'Təsdiqləyirsiniz? Bal veriləcək.', scanRejectConfirm:'Rədd edirsiniz? Bal verilməyəcək.', colReason:'Səbəb', scanPendingFilter:'Gözləmədə', phaseNow:'İndi', phasePast:'Keçmiş', phaseUpcoming:'Gözlənilir', phasePlanned:'Planlaşdırılmış', changeStatus:'Statusu dəyiş', adminList:'Admin siyahısı', navMain:'Əsas', navMonitor:'Monitorinq', navSystem:'Sistem', changeLabel:'— Dəyiş —', noEmployee:'— Seçin —', noEventOpt:'— Tədbirsiz —', submitManual:'Göndər', chooseDates:'Seçin', payloadAuto:'Avtomatik yenilənir.', countries:'Ölkələr', countriesHint:'Seçin.', eventId:'ID (avtomatik)', eventNamePh:'Adı *', poolPh:'Mükafat fondu', currencyPh:'Valyuta', descPh:'Təsvir', rulesPh:'Qaydalar', qToday:'Bu gün', qTomorrow:'Sabah', qWeekend:'Həftə sonu', q7days:'+7 gün', save:'Saxla', hourLabel:'Saat', minuteLabel:'Dəqiqə', selectTime:'Vaxt seçin', scrollChoose:'Fırlayın', scansRefresh:'Yenilə', logsRefresh:'Yenilə', page:'Səhifə', of:'/', reasonBonus:'bonus', reasonPenalty:'cərimə', alertEmpPoints:'Seçin və bal daxil edin', alertEventRequired:'Ad və vaxt tələb olunur', alertAdminRequired:'ID və ad tələb olunur', savedOk:'Saxlanıldı ✓', errorOccurred:'Xəta', pointsAdded:'Əlavə edildi ✓', adminCreated:'Yaradıldı ✓', statusChanged:'Dəyişdirildi ✓', countryUpdated:'Yeniləndi ✓', eventActivated:'Aktivləşdirildi ✓', eventPaused:'Dayandırıldı ✓', eventFinished:'Bitdi', loginWaiting:'Təsdiq gözlənilir...', loginExpired:'Müddəti bitdi.', loginTimeout:'Vaxtı bitdi.',
+    createAdmin:'Admin yarat', environment:'Mühit'
+  }
+};
+
+/* ════════════════════════════════════════════════════════════════
+   STATE
+   ════════════════════════════════════════════════════════════════ */
+const FLAGS = {UZ:'🇺🇿', RU:'🇷🇺', KG:'🇰🇬', AZ:'🇦🇿'};
+const DEFAULT_COUNTRIES = ['UZ','RU','KG','AZ'];
+const DEFAULT_SETTINGS = {base_url:'-', tracking_domain:'-', app_env:'-', bot_mode:'-', countries:DEFAULT_COUNTRIES.map(c=>({country_code:c,country_name:c,instagram_username:'',is_active:'yes'}))};
+let CURRENT_LANG = ['uz','ru'].includes(localStorage.getItem('jf_admin_lang')) ? localStorage.getItem('jf_admin_lang') : 'uz';
+let DATA = {session:null, stats:{}, employees:[], events:[], scans:[], logs:[], admins:[], settings:DEFAULT_SETTINGS, leaderboard:[], eventDetail:null, employeeDetail:null, adminProfile:null};
+let STATE = {activePanel:'overview', eventStatus:'all', selectedEventId:null, selectedEmployeeId:null, loginPollTimer:null};
+let PAGINATION = {employees:{page:1,pageSize:10}, events:{page:1,pageSize:8}, scans:{page:1,pageSize:10}, logs:{page:1,pageSize:10}};
+let TIME_PICKER = {target:'start', hour:10, minute:0};
+let CONFIRM_ACTION = null;
+
+/* ════════════════════════════════════════════════════════════════
+   UTILS
+   ════════════════════════════════════════════════════════════════ */
+function t(key){ return (LANGS[CURRENT_LANG]&&LANGS[CURRENT_LANG][key])||LANGS.en[key]||key; }
+function esc(v){ return String(v??'').replace(/[&<>"']/g,m=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+function toast(msg,type='info',timeout=3200){ const box=document.createElement('div'); box.className=`toast toast-${type}`; box.innerHTML=`<span>${esc(msg)}</span><button class="toast-close" onclick="this.parentElement.remove()">✕</button>`; document.getElementById('toastContainer').appendChild(box); setTimeout(()=>{if(box.parentElement){box.style.animation='fadeOut .25s ease forwards';setTimeout(()=>box.remove(),250);}},timeout); }
+async function api(url, options={}){ const token=localStorage.getItem('jf_web_token'); const headers={'Content-Type':'application/json','Cache-Control':'no-cache',...(options.headers||{})}; if(token) headers['Authorization']=`Bearer ${token}`; const opts={cache:'no-store', headers, credentials:'same-origin', ...options}; if(opts.body&&typeof opts.body!=='string') opts.body=JSON.stringify(opts.body); const res=await fetch(url,opts); let data={}; try{data=await res.json();}catch{} if(res.status===401){ localStorage.removeItem('jf_web_token'); } if(!res.ok){throw new Error(data.detail||data.message||`${res.status} ${res.statusText}`);} return data; }
+
+function statusBadge(status){ const s=String(status||'').toLowerCase(); let cls='badge-info'; if(['active','first_unique_device','yes','accepted','clean','approved_manual'].includes(s)) cls='badge-success'; if(['paused','warning','suspicious','pending'].includes(s)) cls='badge-warn'; if(['blocked','inactive','duplicate_device','error','finished','failed','rejected','rejected_manual'].includes(s)) cls='badge-danger'; return `<span class="badge ${cls}">${esc(localizeStatus(s)||s||'—')}</span>`; }
+function localizeStatus(status){const map={active:t('statusActive'),inactive:t('statusInactive'),blocked:t('statusBlocked'),draft:t('statusDraft'),paused:t('statusPaused'),finished:t('statusFinished'),first_unique_device:t('badgeUnique'),duplicate_device:t('badgeDuplicate'),suspicious:t('badgeSuspicious'),rejected:t('badgeRejected')||'rad etilgan',rejected_manual:t('badgeRejected')||'rad etilgan',approved_manual:t('badgeApprovedManual')||'qo\'lda tasdiqlangan',pending:t('pendingLabel')||'kutilmoqda'};return map[status]||status;}
+function fmtDateTime(v){if(!v)return '—';const d=new Date(v.replace(' ','T'));if(Number.isNaN(d.getTime()))return v;return d.toLocaleString();}
+function fmtShort(v){if(!v)return '—';const d=new Date(v.replace(' ','T'));if(Number.isNaN(d.getTime()))return v;return d.toLocaleString([],{month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'});}
+function formatInputDate(val){if(!val)return '';const d=new Date(val.replace(' ','T'));if(Number.isNaN(d.getTime()))return '';return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function extractTime(val,fb='10:00'){if(!val)return fb;const m=String(val).match(/(\d{2}):(\d{2})/);return m?`${m[1]}:${m[2]}`:fb;}
+function nowLocalDate(){const d=new Date();return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;}
+function combineDateTime(dateStr,timeStr){if(!dateStr||!timeStr)return '';return `${dateStr} ${timeStr}:00`;}
+function calcDurationLabel(start,end){if(!start||!end)return '—';const s=new Date(start.replace(' ','T'));const e=new Date(end.replace(' ','T'));if(Number.isNaN(s.getTime())||Number.isNaN(e.getTime()))return '—';const diff=e-s;if(diff<0)return '—';const mins=Math.round(diff/60000);const days=Math.floor(mins/1440);const hours=Math.floor((mins%1440)/60);const minutes=mins%60;const parts=[];if(days)parts.push(`${days}d`);if(hours)parts.push(`${hours}h`);if(minutes)parts.push(`${minutes}m`);return parts.join(' ')||'0m';}
+function phaseLabel(ev){const n=Date.now();const s=new Date((ev.start_at||'').replace(' ','T')).getTime();const e=new Date((ev.end_at||'').replace(' ','T')).getTime();if(ev.status==='draft')return t('phasePlanned');if(!Number.isNaN(s)&&!Number.isNaN(e)){if(n>=s&&n<=e)return t('phaseNow');if(n>e)return t('phasePast');if(n<s)return t('phaseUpcoming');}return t('phasePlanned');}
+
+/* ════════════════════════════════════════════════════════════════
+   NAVIGATION
+   ════════════════════════════════════════════════════════════════ */
+const panelTitles = {overview:'overview',employees:'employees',events:'events',leaderboard:'leaderboard',scans:'scans',logs:'logs',admins:'admins',settings:'settings','event-detail':'eventDetails','employee-detail':'employeeDetails','admin-profile':'adminCabinet'};
+function switchPanel(name,btn){
+  STATE.activePanel=name;
+  document.querySelectorAll('.panel').forEach(p=>p.classList.toggle('active',p.id===`panel-${name}`));
+  document.querySelectorAll('.nav-item').forEach(n=>n.classList.toggle('active',n.dataset.panel===name));
+  document.getElementById('pageTitle').textContent=t(panelTitles[name]||name);
+  closeSidebar();
+  if(name==='leaderboard') loadLeaderboard();
+}
+function toggleSidebar(){document.getElementById('mainSidebar').classList.toggle('open');document.getElementById('sidebarBackdrop').classList.toggle('open');}
+function closeSidebar(){document.getElementById('mainSidebar').classList.remove('open');document.getElementById('sidebarBackdrop').classList.remove('open');}
+
+/* ════════════════════════════════════════════════════════════════
+   I18N
+   ════════════════════════════════════════════════════════════════ */
+function setText(id,key){const el=document.getElementById(id);if(el)el.textContent=t(key);}
+function applyLang(){
+  CURRENT_LANG=document.getElementById('langSelect').value;
+  document.documentElement.lang=CURRENT_LANG;
+  localStorage.setItem('jf_admin_lang',CURRENT_LANG);
+  // Nav
+  setText('subtitle','subtitle'); setText('navOverview','overview'); setText('navEmployees','employees'); setText('navEvents','events'); setText('navLeaderboard','leaderboard'); setText('navScans','scans'); setText('navLogs','logs'); setText('navAdmins','admins'); setText('navSettings','settings'); setText('navGroupMain','navMain'); setText('navGroupMonitor','navMonitor'); setText('navGroupSystem','navSystem'); setText('logoutBtn','logout');
+  // Top bar
+  document.getElementById('refreshBtnInner').textContent=t('refresh'); setText('newEventTopBtn','newEvent');
+  // Page title
+  document.getElementById('pageTitle').textContent=t(panelTitles[STATE.activePanel]||STATE.activePanel);
+  // Overview
+  setText('recentEventsTitle','recentEvents'); setText('allEventsBtn','openEvents'); setText('manualTitle','manual'); setText('quickInfoTitle','quickInfo'); setText('manualSubmit','submitManual'); setText('reasonBonus','reasonBonus'); setText('reasonPenalty','reasonPenalty');
+  // Events
+  setText('eventFormTitle','eventForm'); setText('eventFormSub','eventFormSub'); setText('clearEventBtn','clear'); setText('clearEventBtn2','clear'); setText('saveEventBtn','saveEvent'); setText('scheduleStartTitle','scheduleStart'); setText('scheduleEndTitle','scheduleEnd'); setText('scheduleTimeLabel1','scheduleTime'); setText('scheduleTimeLabel2','scheduleTime'); setText('eventCountriesTitle','countries'); setText('rewardsTitle','rewards'); setText('addRewardBtn','addReward'); setText('qsToday','qToday'); setText('qsTomorrow','qTomorrow'); setText('qsWeekend','qWeekend'); setText('qs7days','q7days');
+  // Time picker
+  setText('timePickerTitle','selectTime'); setText('timePickerSub','scrollChoose'); setText('wheelHourTitle','hourLabel'); setText('wheelMinuteTitle','minuteLabel'); setText('applyTimeBtn','applyTime'); setText('timePickerCancelBtn','cancel');
+  // Confirm
+  setText('confirmTitle','areYouSure'); setText('confirmCancelBtn','cancel'); setText('confirmOkBtn','confirm');
+  // Login
+  setText('loginTitle','loginTitle'); setText('loginText','loginText'); setText('loginBtn','loginBtn');
+  // Employee filters
+  setText('empCountryAll','allCountries'); setText('empStatusAll','allStatuses'); setText('empResetBtn','clear');
+  setText('thCode','colCode'); setText('thName','colName'); setText('thCountry','colCountry'); setText('thStatus','colStatus'); setText('thLastActive','colLastActive'); setText('thAction','colAction');
+  // Event filters
+  setText('evCountryAll','allCountries'); setText('sortLatest','latestFirst'); setText('sortEarliest','earliestFirst'); setText('sortNameAZ','nameAZ'); setText('eventResetBtn','clear');
+  // Leaderboard
+  setText('lbPeriodAll','lifetime'); setText('lbPeriodToday','today'); setText('lbPeriodWeek','thisWeek'); setText('lbPeriodMonth','thisMonth'); setText('lbQueryBtn','show'); setText('thRank','colRank'); setText('thLbName','colName'); setText('thLbCountry','colCountry'); setText('thLbPoints','colPoints');
+  // Scans
+  setText('scansRefreshLabel','refresh'); setText('scanAll','allDecisions'); setText('scanUnique','badgeUnique'); setText('scanDuplicate','badgeDuplicate'); setText('scanSuspicious','badgeSuspicious'); setText('scanPending','scanPendingFilter'); setText('scanRejected','badgeRejected'); setText('thScanTime','colTime'); setText('thScanEmp','colEmployee'); setText('thScanDevice','colDevice'); setText('thScanIP','colIP'); setText('thScanDecision','colDecision'); setText('thScanReason','colReason'); setText('thScanEvent','colEvent'); setText('thScanAction','colAction');
+  // Logs
+  setText('logsRefreshLabel','refresh'); setText('logAll','allLevels'); setText('thLogTime','colTime'); setText('thLogLevel','colLevel'); setText('thLogAction','colMsgAction'); setText('thLogEntity','colEntity'); setText('thLogMsg','colMessage');
+  // Admins
+  setText('adminsTitle','admins'); setText('adminListTitle','adminList'); document.getElementById('createAdminBtn').textContent=t('createAdmin'); setText('thAdminName','colName'); setText('thAdminTG','colTgId'); setText('thAdminRole','colRole'); setText('thAdminStatus','colStatus');
+  // Settings
+  setText('settingsTitle','environment'); setText('countrySettingsTitle','countries');
+  // Placeholders
+  document.getElementById('eventName').placeholder=t('eventNamePh');
+  document.getElementById('eventPool').placeholder=t('poolPh');
+  document.getElementById('eventCurrency').placeholder=t('currencyPh');
+  document.getElementById('eventDescription').placeholder=t('descPh');
+  document.getElementById('eventRules').placeholder=t('rulesPh');
+  document.getElementById('empSearch').placeholder=t('searchEmployees');
+  document.getElementById('eventSearch').placeholder=t('searchEvents');
+  document.getElementById('loginDevice').placeholder=t('deviceLabel');
+  // Re-render
+  updateEventStatusSeg(); syncEventDateTime(); renderEmployees(); renderEvents(); renderScans(); renderLogs(); renderOverview(); renderSettings(); renderAdmins(); loadLeaderboard();
+}
+
+/* ════════════════════════════════════════════════════════════════
+   OVERVIEW
+   ════════════════════════════════════════════════════════════════ */
+function updateCounts(){
+  document.getElementById('countEmployees').textContent=DATA.employees.length;
+  document.getElementById('countEvents').textContent=DATA.events.length;
+  document.getElementById('countScans').textContent=DATA.scans.length;
+  document.getElementById('countLogs').textContent=DATA.logs.length;
+  document.getElementById('countAdmins').textContent=DATA.admins.length;
+}
+function renderStats(){
+  const s=DATA.stats||{};
+  const cards=[
+    {label:t('statEmployees'),value:s.total_employees??DATA.employees.length,sub:t('statActive')},
+    {label:t('statPoints'),value:s.total_points??0,sub:t('statAllTime')},
+    {label:t('statScans'),value:s.total_scans??DATA.scans.length,sub:t('statLogged')},
+    {label:t('statUnique'),value:s.unique_devices??0,sub:t('statAwarded')},
+    {label:t('statDuplicates'),value:s.duplicate_attempts??0,sub:t('statDuplicateAtt')},
+    {label:t('statEvents'),value:s.total_events??DATA.events.length,sub:t('statAllTime')}
+  ];
+  document.getElementById('statsCards').innerHTML=cards.map(c=>`<div class="stat-card"><div class="stat-label">${esc(c.label)}</div><div class="stat-value">${esc(c.value)}</div><div class="stat-sub">${esc(c.sub)}</div></div>`).join('');
+}
+function renderOverview(){
+  const recent=[...DATA.events].sort((a,b)=>String(b.start_at||'').localeCompare(String(a.start_at||''))).slice(0,5);
+  document.getElementById('overviewEvents').innerHTML=recent.length?recent.map(ev=>`<div class="ev-card" onclick="openEventDetail('${esc(ev.event_id)}')"><div class="ev-head"><div><div class="ev-name">${esc(ev.event_name||'—')}</div><div class="ev-id"><code>${esc(ev.event_id||'')}</code></div></div>${statusBadge(ev.status||'draft')}</div><div class="ev-meta"><div class="ev-meta-item"><span class="label">${esc(t('scheduleStart'))}</span> ${esc(fmtShort(ev.start_at))}</div><div class="ev-meta-item"><span class="label">${esc(t('scheduleEnd'))}</span> ${esc(fmtShort(ev.end_at))}</div><div class="ev-meta-item">${esc(phaseLabel(ev))}</div></div><div class="ev-desc">${esc(ev.description||'')}</div></div>`).join(''):`<div class="empty">${esc(t('noEvents'))}</div>`;
+  document.getElementById('quickInfo').innerHTML=[['BASE_URL',DATA.settings.base_url],['TRACKING_DOMAIN',DATA.settings.tracking_domain],['APP_ENV',DATA.settings.app_env],['BOT_MODE',DATA.settings.bot_mode]].map(([k,v])=>`<div style="padding:8px 12px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);font-size:12px"><span style="font-weight:700;color:var(--text3)">${esc(k)}:</span> <code>${esc(v||'-')}</code></div>`).join('');
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYEES
+   ════════════════════════════════════════════════════════════════ */
+function resetEmployeeFilters(){document.getElementById('empSearch').value='';document.getElementById('empCountry').value='';document.getElementById('empStatus').value='';PAGINATION.employees.page=1;renderEmployees();}
+function renderEmployees(){
+  const q=document.getElementById('empSearch').value.trim().toLowerCase();
+  const country=document.getElementById('empCountry').value;
+  const status=document.getElementById('empStatus').value;
+  let items=[...DATA.employees].filter(e=>{const text=[e.full_name,e.employee_code,e.employee_id].join(' ').toLowerCase();return (!q||text.includes(q))&&(!country||e.country_code===country)&&(!status||e.status===status);});
+  document.getElementById('employeeSummary').innerHTML=[{k:t('statEmployees'),v:DATA.employees.length},{k:t('statusActive'),v:DATA.employees.filter(x=>x.status==='active').length},{k:t('statusInactive'),v:DATA.employees.filter(x=>x.status==='inactive').length},{k:t('statusBlocked'),v:DATA.employees.filter(x=>x.status==='blocked').length}].map(x=>`<div class="mini-card"><div class="k">${esc(x.k)}</div><div class="v">${esc(x.v)}</div></div>`).join('');
+  const pg=PAGINATION.employees; const pages=Math.max(1,Math.ceil(items.length/pg.pageSize)); if(pg.page>pages)pg.page=pages;
+  const start=(pg.page-1)*pg.pageSize; const pageItems=items.slice(start,start+pg.pageSize);
+  document.getElementById('employeesTbody').innerHTML=pageItems.length?pageItems.map((e,i)=>`<tr><td>${start+i+1}</td><td><button class="btn btn-ghost btn-sm" onclick="openEmployeeDetail('${esc(e.employee_id)}')"><code>${esc(e.employee_code||e.employee_id||'—')}</code></button></td><td><button class="btn btn-ghost btn-sm" onclick="openEmployeeDetail('${esc(e.employee_id)}')">${esc(e.full_name||'—')}</button></td><td>${esc(FLAGS[e.country_code]||'')} ${esc(e.country_code||'—')}</td><td>${statusBadge(e.status||'inactive')}</td><td>${esc(fmtShort(e.last_active_at||e.updated_at||e.created_at))}</td><td><div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-secondary btn-sm" onclick="openEmployeeDetail('${esc(e.employee_id)}')">${esc(t('openLabel'))}</button><select class="select" style="width:auto;padding:6px 10px;font-size:12px" onchange="changeEmployeeStatus('${esc(e.employee_id)}',this.value)"><option value="">${esc(t('changeLabel'))}</option><option value="active">${esc(t('statusActive'))}</option><option value="inactive">${esc(t('statusInactive'))}</option><option value="blocked">${esc(t('statusBlocked'))}</option></select></div></td></tr>`).join(''):`<tr><td colspan="7"><div class="empty">${esc(t('nothingFound'))}</div></td></tr>`;
+  renderPagination('empPagination',pg,pages,items.length,()=>renderEmployees());
+}
+
+/* ════════════════════════════════════════════════════════════════
+   PAGINATION
+   ════════════════════════════════════════════════════════════════ */
+function renderPagination(elId,pg,totalPages,totalItems,rerender){
+  const el=document.getElementById(elId);
+  el.innerHTML=`<div class="pag-info">${esc(t('page'))} ${pg.page} ${esc(t('of'))} ${totalPages} · ${totalItems}</div><div class="pag-btns"><button class="btn btn-secondary btn-sm" ${pg.page<=1?'disabled':''}>‹</button><button class="btn btn-secondary btn-sm" ${pg.page>=totalPages?'disabled':''}>›</button></div>`;
+  const btns=el.querySelectorAll('button');
+  btns[0].onclick=()=>{if(pg.page>1){pg.page--;rerender();}};
+  btns[1].onclick=()=>{if(pg.page<totalPages){pg.page++;rerender();}};
+}
+
+/* ════════════════════════════════════════════════════════════════
+   EVENTS
+   ════════════════════════════════════════════════════════════════ */
+function updateEventStatusSeg(){
+  const segs=[['all','segAll'],['active','segActive'],['draft','segDraft'],['paused','segPaused'],['finished','segFinished']];
+  document.getElementById('eventStatusSeg').innerHTML=segs.map(([v,k])=>`<button class="tab ${STATE.eventStatus===v?'active':''}" onclick="setEventStatus('${v}')">${esc(t(k))}</button>`).join('');
+}
+function setEventStatus(v){STATE.eventStatus=v;PAGINATION.events.page=1;updateEventStatusSeg();renderEvents();}
+function resetEventFilters(){document.getElementById('eventSearch').value='';document.getElementById('eventCountryFilter').value='';document.getElementById('eventSort').value='start_desc';STATE.eventStatus='all';PAGINATION.events.page=1;updateEventStatusSeg();renderEvents();}
+
+function eventActionButtons(ev){
+  let html='';
+  if(ev.status==='draft') html+=`<button class="btn btn-success btn-sm" onclick="eventAction('${esc(ev.event_id)}','activate');event.stopPropagation()">Activate</button>`;
+  if(ev.status==='active') html+=`<button class="btn btn-secondary btn-sm" onclick="eventAction('${esc(ev.event_id)}','pause');event.stopPropagation()">Pause</button><button class="btn btn-danger btn-sm" onclick="confirmFinishEvent('${esc(ev.event_id)}');event.stopPropagation()">Finish</button>`;
+  if(ev.status==='paused') html+=`<button class="btn btn-success btn-sm" onclick="eventAction('${esc(ev.event_id)}','activate');event.stopPropagation()">Resume</button><button class="btn btn-danger btn-sm" onclick="confirmFinishEvent('${esc(ev.event_id)}');event.stopPropagation()">Finish</button>`;
+  html+=`<button class="btn btn-ghost btn-sm" onclick="loadLeaderboardForEvent('${esc(ev.event_id)}');event.stopPropagation()">📊 Board</button>`;
+  return html;
+}
+
+function renderEvents(){
+  const q=document.getElementById('eventSearch').value.trim().toLowerCase();
+  const country=document.getElementById('eventCountryFilter').value;
+  const sort=document.getElementById('eventSort').value;
+  let items=[...DATA.events].filter(ev=>{const text=[ev.event_name,ev.event_id,ev.description,ev.rules_text].join(' ').toLowerCase();const countryOk=!country||(ev.countries||ev.country_codes||[]).includes(country);const statusOk=STATE.eventStatus==='all'||ev.status===STATE.eventStatus;return(!q||text.includes(q))&&countryOk&&statusOk;});
+  if(sort==='start_desc')items.sort((a,b)=>String(b.start_at||'').localeCompare(String(a.start_at||'')));
+  if(sort==='start_asc')items.sort((a,b)=>String(a.start_at||'').localeCompare(String(b.start_at||'')));
+  if(sort==='name_asc')items.sort((a,b)=>String(a.event_name||'').localeCompare(String(b.event_name||'')));
+  document.getElementById('eventSummary').innerHTML=[[t('statEvents'),DATA.events.length],[t('segActive'),DATA.events.filter(x=>x.status==='active').length],[t('eventDraft'),DATA.events.filter(x=>x.status==='draft').length],[t('eventFinishedLabel'),DATA.events.filter(x=>x.status==='finished').length]].map(([k,v])=>`<div class="mini-card"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('');
+  const pg=PAGINATION.events; const pages=Math.max(1,Math.ceil(items.length/pg.pageSize)); if(pg.page>pages)pg.page=pages;
+  const start=(pg.page-1)*pg.pageSize; const pageItems=items.slice(start,start+pg.pageSize);
+  document.getElementById('eventsList').innerHTML=pageItems.length?pageItems.map(ev=>`<div class="ev-card ${STATE.selectedEventId===ev.event_id?'selected':''}" onclick="openEventDetail('${esc(ev.event_id)}')"><div class="ev-head"><div><div class="ev-name">${esc(ev.event_name||'—')}</div><div class="ev-id"><code>${esc(ev.event_id||'')}</code></div></div>${statusBadge(ev.status||'draft')}</div><div class="ev-desc">${esc(ev.description||'')}</div><div class="ev-meta"><div class="ev-meta-item"><span class="label">${esc(t('scheduleStart'))}</span> ${esc(fmtShort(ev.start_at))}</div><div class="ev-meta-item"><span class="label">${esc(t('scheduleEnd'))}</span> ${esc(fmtShort(ev.end_at))}</div><div class="ev-meta-item">${esc(phaseLabel(ev))}</div></div><div class="ev-actions">${eventActionButtons(ev)}</div></div>`).join(''):`<div class="empty">${esc(t('nothingFound'))}</div>`;
+  renderPagination('evPagination',pg,pages,items.length,()=>renderEvents());
+}
+
+function goToNewEvent(){switchPanel('events',document.querySelector('.nav-item[data-panel="events"]'));clearEventForm();document.getElementById('eventName').focus();}
+function switchToEvents(){switchPanel('events',document.querySelector('.nav-item[data-panel="events"]'));}
+async function openEventDetail(eventId){STATE.selectedEventId=eventId;_eventLbActiveCountry='';switchPanel('event-detail');try{const d=await api(`/api/web/events/${encodeURIComponent(eventId)}/detail`);DATA.eventDetail=d;renderEventDetail();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+function fillEventForm(ev){
+  STATE.selectedEventId=ev?.event_id||null;
+  document.getElementById('eventId').value=ev?.event_id||'';
+  document.getElementById('eventName').value=ev?.event_name||'';
+  document.getElementById('eventPool').value=ev?.reward_pool_amount||'';
+  document.getElementById('eventCurrency').value=ev?.reward_pool_currency||'UZS';
+  document.getElementById('eventDescription').value=ev?.description||'';
+  document.getElementById('eventRules').value=ev?.rules_text||'';
+  document.getElementById('eventStartDate').value=formatInputDate(ev?.start_at)||nowLocalDate();
+  document.getElementById('eventEndDate').value=formatInputDate(ev?.end_at)||nowLocalDate();
+  document.getElementById('eventStartTimeLabel').textContent=extractTime(ev?.start_at,'10:00');
+  document.getElementById('eventEndTimeLabel').textContent=extractTime(ev?.end_at,'22:00');
+  document.querySelectorAll('#countryChecks input[type=checkbox]').forEach(ch=>ch.checked=!!(ev&&(ev.countries||ev.country_codes||[]).includes(ch.value)));
+  setRewardRows(ev?.rewards||[{place_number:1,reward_title:'1-place',reward_amount:'1M',currency_code:'UZS'}]);
+  syncEventDateTime(); renderEvents();
+}
+function clearEventForm(){
+  STATE.selectedEventId=null;
+  document.getElementById('eventFormTitle').textContent=t('eventForm');
+  document.getElementById('eventId').value='';document.getElementById('eventName').value='';document.getElementById('eventPool').value='';document.getElementById('eventCurrency').value='UZS';document.getElementById('eventDescription').value='';document.getElementById('eventRules').value='';
+  document.getElementById('eventStartDate').value=nowLocalDate();document.getElementById('eventEndDate').value=nowLocalDate();
+  document.getElementById('eventStartTimeLabel').textContent='10:00';document.getElementById('eventEndTimeLabel').textContent='22:00';
+  document.querySelectorAll('#countryChecks input[type=checkbox]').forEach(ch=>ch.checked=['UZ'].includes(ch.value));
+  setRewardRows([{place_number:1,reward_title:'1-place',reward_amount:'1M',currency_code:'UZS'}]);
+  syncEventDateTime(); renderEvents();
+}
+function setRewardRows(rows){document.getElementById('rewardRows').innerHTML='';(rows.length?rows:[{}]).forEach(row=>addRewardRow(row));}
+function addRewardRow(data={}){
+  const row=document.createElement('div');row.className='reward-row';
+  row.innerHTML=`<input placeholder="#" type="number" value="${esc(data.place_number??'')}"><input placeholder="Title" value="${esc(data.reward_title??'')}"><input placeholder="Amount" value="${esc(data.reward_amount??'')}"><input placeholder="Code" value="${esc(data.currency_code??'UZS')}"><button class="btn btn-secondary btn-icon btn-sm" type="button">✕</button>`;
+  row.querySelector('button').onclick=()=>{row.remove();if(!document.querySelector('#rewardRows .reward-row'))addRewardRow();};
+  document.getElementById('rewardRows').appendChild(row);
+}
+function collectRewards(){return [...document.querySelectorAll('#rewardRows .reward-row')].map(r=>{const inputs=r.querySelectorAll('input');return{place_number:Number(inputs[0].value||0),reward_title:inputs[1].value.trim(),reward_amount:inputs[2].value.trim(),currency_code:(inputs[3].value.trim()||'UZS')};}).filter(r=>r.place_number||r.reward_title||r.reward_amount);}
+function getSelectedCountries(){return [...document.querySelectorAll('#countryChecks input:checked')].map(i=>i.value);}
+
+function quickSchedule(mode){
+  const now=new Date();let sDate=new Date();let eDate=new Date();let sTime='10:00';let eTime='22:00';
+  if(mode==='tomorrow'){sDate.setDate(now.getDate()+1);eDate.setDate(now.getDate()+1);}
+  else if(mode==='weekend'){const day=now.getDay();const add=(6-day+7)%7||7;sDate.setDate(now.getDate()+add);eDate.setDate(now.getDate()+add+1);}
+  else if(mode==='7days'){eDate.setDate(now.getDate()+7);}
+  document.getElementById('eventStartDate').value=formatInputDate(sDate.toISOString());
+  document.getElementById('eventEndDate').value=formatInputDate(eDate.toISOString());
+  document.getElementById('eventStartTimeLabel').textContent=sTime;
+  document.getElementById('eventEndTimeLabel').textContent=eTime;
+  syncEventDateTime();
+}
+function syncEventDateTime(){
+  const start=combineDateTime(document.getElementById('eventStartDate').value,document.getElementById('eventStartTimeLabel').textContent);
+  const end=combineDateTime(document.getElementById('eventEndDate').value,document.getElementById('eventEndTimeLabel').textContent);
+  document.getElementById('eventStart').value=start;document.getElementById('eventEnd').value=end;
+  document.getElementById('eventDurationChip').textContent=calcDurationLabel(start,end);
+  document.getElementById('eventScheduleSummary').textContent=(start&&end)?`${fmtShort(start)} → ${fmtShort(end)}`:t('chooseDates');
+  document.getElementById('eventScheduleSub').textContent=t('payloadAuto');
+  const warn=document.getElementById('eventScheduleWarning');
+  const s=new Date(start.replace(' ','T'));const e=new Date(end.replace(' ','T'));
+  if(start&&end&&!Number.isNaN(s.getTime())&&!Number.isNaN(e.getTime())&&e<=s){warn.style.display='block';warn.textContent='End time must be after start time';}else{warn.style.display='none';warn.textContent='';}
+}
+
+/* Time picker */
+function buildWheel(el,from,to,current){el.innerHTML='';for(let i=from;i<=to;i++){const opt=document.createElement('div');opt.className='wheel-opt';opt.dataset.value=i;opt.textContent=String(i).padStart(2,'0');opt.onclick=()=>scrollWheelTo(el,i);el.appendChild(opt);}setTimeout(()=>scrollWheelTo(el,current,false),0);}
+function scrollWheelTo(el,value,smooth=true){const opt=[...el.querySelectorAll('.wheel-opt')].find(o=>Number(o.dataset.value)===Number(value));if(!opt)return;el.scrollTo({top:opt.offsetTop-76,behavior:smooth?'smooth':'auto'});updateWheelActive(el,value);}
+function updateWheelActive(el,value){el.querySelectorAll('.wheel-opt').forEach(o=>o.classList.toggle('active',Number(o.dataset.value)===Number(value)));}
+function openTimePicker(target){TIME_PICKER.target=target;const label=document.getElementById(target==='start'?'eventStartTimeLabel':'eventEndTimeLabel').textContent;const[hour,minute]=label.split(':').map(Number);TIME_PICKER.hour=hour;TIME_PICKER.minute=minute;buildWheel(document.getElementById('hourWheel'),0,23,hour);buildWheel(document.getElementById('minuteWheel'),0,59,minute);document.getElementById('timePickerModal').classList.remove('hidden');bindWheelListeners();updateTimePreview();}
+function bindWheelListeners(){['hourWheel','minuteWheel'].forEach(id=>{const el=document.getElementById(id);el.onscroll=()=>{const options=[...el.querySelectorAll('.wheel-opt')];let closest=options[0],minDist=Infinity;options.forEach(o=>{const dist=Math.abs((o.offsetTop-el.scrollTop)-76);if(dist<minDist){minDist=dist;closest=o;}});const val=Number(closest.dataset.value);if(id==='hourWheel')TIME_PICKER.hour=val;else TIME_PICKER.minute=val;updateWheelActive(el,val);updateTimePreview();};});}
+function updateTimePreview(){document.getElementById('timePickerPreview').textContent=`${String(TIME_PICKER.hour).padStart(2,'0')}:${String(TIME_PICKER.minute).padStart(2,'0')}`;}
+function applyPickedTime(){const val=document.getElementById('timePickerPreview').textContent;document.getElementById(TIME_PICKER.target==='start'?'eventStartTimeLabel':'eventEndTimeLabel').textContent=val;hideTimePicker();syncEventDateTime();}
+function hideTimePicker(){document.getElementById('timePickerModal').classList.add('hidden');}
+function closeTimePicker(ev){if(ev.target.id==='timePickerModal')hideTimePicker();}
+
+async function saveEvent(){
+  const payload={event_name:document.getElementById('eventName').value.trim(),description:document.getElementById('eventDescription').value.trim(),start_at:document.getElementById('eventStart').value.trim(),end_at:document.getElementById('eventEnd').value.trim(),rules_text:document.getElementById('eventRules').value.trim(),country_codes:getSelectedCountries(),rewards:collectRewards(),reward_pool_amount:document.getElementById('eventPool').value.trim(),reward_pool_currency:document.getElementById('eventCurrency').value.trim()||'UZS'};
+  if(!payload.event_name||!payload.start_at||!payload.end_at){toast(t('alertEventRequired'),'warn');return;}
+  try{await api('/api/web/events',{method:'POST',body:payload});toast(t('savedOk'),'success');await loadEvents();await loadStats();populateCommonSelects();clearEventForm();}catch(err){toast(err.message||t('errorOccurred'),'error');}
+}
+async function eventAction(eventId,action){try{await api(`/api/web/events/${encodeURIComponent(eventId)}/${encodeURIComponent(action)}`,{method:'POST'});const msg=action==='activate'?t('eventActivated'):action==='pause'?t('eventPaused'):t('eventFinished');toast(msg,'success');await loadEvents();await loadStats();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+function confirmFinishEvent(eventId){openConfirm(t('finishConfirm'),()=>eventAction(eventId,'finish'));}
+async function deleteEventById(eventId){openConfirm(t('deleteEventConfirm'), async()=>{try{await api(`/api/web/events/${encodeURIComponent(eventId)}`,{method:'DELETE'});toast(t('savedOk'),'success');DATA.eventDetail=null;await loadEvents();await loadStats();switchToEvents();}catch(err){toast(err.message||t('historyProtected'),'error');}});}
+function renderSimplePeopleList(items, targetId, mode='participant'){const el=document.getElementById(targetId);if(!el)return;el.innerHTML=(items||[]).length?(items||[]).slice(0,50).map(item=>{const person=mode==='participant'?(item.employee||{}):item;return `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;padding:8px 10px;border:1px solid var(--border);border-radius:12px;background:var(--surface2)"><div><div style="font-weight:700">${esc(person.full_name||person.employee_code||'—')}</div><div class="card-sub">${esc(person.employee_code||'')} · ${esc(FLAGS[person.country_code]||'')} ${esc(person.country_code||'')}</div></div><button class="btn btn-ghost btn-sm" onclick="openEmployeeDetail('${esc(person.employee_id||'')}')">${esc(t('openLabel'))}</button></div>`;}).join(''):`<div class="empty">${esc(t('noData'))}</div>`;}
+function renderEventDetail(){const d=DATA.eventDetail||{};const ev=d.event||{};if(!ev.event_id)return;document.getElementById('pageTitle').textContent=t('eventDetails');document.getElementById('eventDetailHeader').innerHTML=`<div style="display:flex;justify-content:space-between;gap:10px;flex-wrap:wrap;align-items:flex-start"><div><div style="font-size:24px;font-weight:800">${esc(ev.event_name||'—')}</div><div class="card-sub"><code>${esc(ev.event_id||'')}</code> · ${statusBadge(ev.status||'draft')}</div></div><div class="card-sub">${esc((ev.countries||[]).map(c=>`${FLAGS[c]||''} ${c}`).join(', '))}</div></div><div>${esc(ev.description||'')}</div><div class="card-sub">${esc(fmtShort(ev.start_at))} → ${esc(fmtShort(ev.end_at))}</div><div style="white-space:pre-wrap">${esc(ev.rules_text||'')}</div>`;const s=d.stats||{};document.getElementById('eventDetailStats').innerHTML=[[t('statEmployees'),s.eligible_employees],[t('acceptedLabel'),s.accepted_count],[t('pendingLabel'),s.pending_count],[t('declinedLabel'),s.declined_count],[t('noResponseLabel'),s.not_responded_count],[t('statScans'),s.total_scans],[t('statUnique'),s.unique_devices],[t('statPoints'),s.total_points]].map(([k,v])=>`<div class="mini-card"><div class="k">${esc(k)}</div><div class="v">${esc(v??0)}</div></div>`).join('');document.getElementById('eventDetailActions').innerHTML=`${eventActionButtons(ev)} <button class="btn btn-danger btn-sm" onclick="deleteEventById('${esc(ev.event_id)}')">🗑 ${esc(t('deleteEvent'))}</button>`;renderSimplePeopleList(d.participants?.accepted,'eventAcceptedList','participant');renderSimplePeopleList(d.participants?.pending,'eventPendingList','participant');renderSimplePeopleList(d.participants?.declined,'eventDeclinedList','participant');renderSimplePeopleList(d.participants?.not_responded,'eventNoResponseList','employee');renderEventLeaderboardTabs(d);document.getElementById('eventScansTbody').innerHTML=(d.recent_scans||[]).length?(d.recent_scans||[]).slice(0,50).map(s=>{const dec=s.point_decision||s.scan_status||'';const reason=s.pending_reason||'';return`<tr><td>${esc(fmtShort(s.scanned_at||s.created_at))}</td><td>${esc(s.employee_code||'—')}</td><td><code style="font-size:11px">${esc(s.device_key?s.device_key.slice(0,16)+'…':'—')}</code></td><td>${esc(s.ip_address||'—')}</td><td>${statusBadge(dec)}</td><td>${reason?`<span class="badge badge-info" style="font-size:11px">${esc(pendingReasonLabel(reason))}</span>`:'—'}</td><td>${scanActionBtns(s)}</td></tr>`;}).join(''):`<tr><td colspan="7"><div class="empty">${esc(t('noData'))}</div></td></tr>`;}
+/* ── Event leaderboard per-country tabs ── */
+let _eventLbActiveCountry = '';
+function renderEventLeaderboardTabs(d) {
+  const ev = d.event || {};
+  const countries = ev.countries || [];
+  const byCountry = d.leaderboard_by_country || {};
+  const tabsEl = document.getElementById('eventLbCountryTabs');
+  if (!tabsEl) return;
+  // Build tab buttons: "All" + each country
+  let tabs = `<button class="btn btn-sm ${_eventLbActiveCountry===''?'btn-primary':'btn-secondary'}" onclick="_eventLbActiveCountry='';renderEventLbTable()">🌐 ${esc(t('allLabel')||'All')}</button>`;
+  countries.forEach(cc => {
+    const active = _eventLbActiveCountry === cc;
+    tabs += `<button class="btn btn-sm ${active?'btn-primary':'btn-secondary'}" onclick="_eventLbActiveCountry='${esc(cc)}';renderEventLbTable()">${esc(FLAGS[cc]||'')} ${esc(cc)}</button>`;
+  });
+  tabsEl.innerHTML = tabs;
+  renderEventLbTable();
+}
+function renderEventLbTable() {
+  const d = DATA.eventDetail || {};
+  const byCountry = d.leaderboard_by_country || {};
+  let rows;
+  if (_eventLbActiveCountry && byCountry[_eventLbActiveCountry]) {
+    rows = byCountry[_eventLbActiveCountry];
+  } else {
+    rows = d.leaderboard || [];
+  }
+  // Re-highlight active tab
+  const tabsEl = document.getElementById('eventLbCountryTabs');
+  if (tabsEl) {
+    tabsEl.querySelectorAll('button').forEach(btn => {
+      const isAll = btn.textContent.includes('All') || btn.textContent.includes(t('allLabel')||'All');
+      const isActiveTab = _eventLbActiveCountry === '' ? isAll : btn.textContent.includes(_eventLbActiveCountry);
+      btn.className = `btn btn-sm ${isActiveTab ? 'btn-primary' : 'btn-secondary'}`;
+    });
+  }
+  document.getElementById('eventLeaderboardTbody').innerHTML = (rows||[]).length
+    ? (rows||[]).slice(0, 50).map(r => `<tr><td style="font-weight:800">${esc(r.rank||'')}</td><td><button class="btn btn-ghost btn-sm" onclick="openEmployeeDetail('${esc(r.employee_id||'')}')">${esc(r.full_name||r.employee_name||'—')}</button></td><td>${esc(FLAGS[r.country_code]||'')} ${esc(r.country_code||'—')}</td><td><b>${esc(r.points??0)}</b></td></tr>`).join('')
+    : `<tr><td colspan="4"><div class="empty">${esc(t('noData'))}</div></td></tr>`;
+}
+async function openEmployeeDetail(employeeId){STATE.selectedEmployeeId=employeeId;switchPanel('employee-detail');try{const d=await api(`/api/web/employees/${encodeURIComponent(employeeId)}/detail`);DATA.employeeDetail=d;renderEmployeeDetail();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+function renderEmployeeDetail(){const d=DATA.employeeDetail||{};const e=d.employee||{};if(!e.employee_id)return;document.getElementById('pageTitle').textContent=t('employeeDetails');document.getElementById('employeeDetailHeader').innerHTML=`<div style="font-size:22px;font-weight:800">${esc(e.full_name||'—')}</div><div class="card-sub"><code>${esc(e.employee_code||'')}</code> · ${esc(FLAGS[e.country_code]||'')} ${esc(e.country_code||'')} · ${statusBadge(e.status||'')}</div><div class="card-sub">Telegram: ${esc(e.telegram_user_id||'—')}</div><div class="card-sub">Oxirgi faollik: ${esc(fmtShort(e.last_active_at||e.registered_at))}</div>`;const s=d.stats||{};document.getElementById('employeeDetailStats').innerHTML=[[t('statPoints'),s.total_points],[t('today'),s.today_points],[t('thisWeek'),s.week_points],[t('thisMonth'),s.month_points],[t('statScans'),s.total_scans],[t('statUnique'),s.unique_devices],[t('statDuplicates'),s.duplicate_scans]].map(([k,v])=>`<div class="mini-card"><div class="k">${esc(k)}</div><div class="v">${esc(v??0)}</div></div>`).join('');const base=[e.short_link?{label:'Asosiy link',short_link:e.short_link,qr_image_url:''}:null,...(d.qrs||[])].filter(Boolean);document.getElementById('employeeQrList').innerHTML=base.length?base.map(q=>`<div style="padding:10px 12px;border:1px solid var(--border);background:var(--surface2);border-radius:12px"><div style="font-weight:700">${esc(q.event_id?`Event QR · ${q.event_id}`:'Personal QR')}</div><div class="card-sub" style="word-break:break-all">${esc(q.short_link||'—')}</div>${q.qr_image_url?`<div class="card-sub">${esc(q.qr_image_url)}</div>`:''}</div>`).join(''):`<div class="empty">${esc(t('noData'))}</div>`;document.getElementById('employeeParticipationTbody').innerHTML=(d.participations||[]).length?(d.participations||[]).map(p=>`<tr><td><button class="btn btn-ghost btn-sm" onclick="openEventDetail('${esc(p.event_id||'')}')">${esc(p.event_name||p.event_id||'—')}</button></td><td>${statusBadge(p.status||'')}</td><td>${statusBadge(p.participant_status||'')}</td><td>${esc(fmtShort(p.responded_at))}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty">${esc(t('noData'))}</div></td></tr>`;document.getElementById('employeeScansTbody').innerHTML=(d.recent_scans||[]).length?(d.recent_scans||[]).slice(0,50).map(s=>{const dec=s.point_decision||s.scan_status||'';const reason=s.pending_reason||'';return`<tr><td>${esc(fmtShort(s.scanned_at||s.created_at))}</td><td>${esc(s.event_id||'—')}</td><td><code style="font-size:11px">${esc(s.device_key?s.device_key.slice(0,16)+'…':'—')}</code></td><td>${esc(s.ip_address||'—')}</td><td>${statusBadge(dec)}</td><td>${reason?`<span class="badge badge-info" style="font-size:11px">${esc(pendingReasonLabel(reason))}</span>`:'—'}</td><td>${scanActionBtns(s)}</td></tr>`;}).join(''):`<tr><td colspan="7"><div class="empty">${esc(t('noData'))}</div></td></tr>`;}
+async function openAdminProfile(){switchPanel('admin-profile');try{const d=await api('/api/web/admin/profile');DATA.adminProfile=d;renderAdminProfile();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+function renderAdminProfile(){const d=DATA.adminProfile||{};const a=d.admin||DATA.session||{};document.getElementById('pageTitle').textContent=t('adminCabinet');document.getElementById('adminProfileHeader').innerHTML=`<div style="font-size:22px;font-weight:800">${esc(a.full_name||'Admin')}</div><div class="card-sub">Telegram ID: ${esc(a.telegram_user_id||'—')}</div><div class="card-sub">Role: ${esc(a.role_code||'—')}</div><div class="card-sub">${esc(t('activeSessionsNote'))}</div>`;const s=d.stats||{};document.getElementById('adminProfileStats').innerHTML=[[t('statEmployees'),s.employees_total],[t('statEvents'),s.events_total],[t('statScans'),s.scans_total],[t('statPoints'),s.points_total]].map(([k,v])=>`<div class="mini-card"><div class="k">${esc(k)}</div><div class="v">${esc(v??0)}</div></div>`).join('');document.getElementById('adminSessionsTbody').innerHTML=(d.active_sessions||[]).length?(d.active_sessions||[]).map(s=>`<tr><td>${esc(s.device_label||'Browser')} ${s.is_current?'<span class="badge badge-success">current</span>':''}</td><td>${esc(s.role_code||'—')}</td><td>${esc(s.ip_address||'—')}</td><td>${esc(fmtShort(s.created_at))}</td><td>${esc(fmtShort(s.last_seen_at))}</td></tr>`).join(''):`<tr><td colspan="5"><div class="empty">${esc(t('noData'))}</div></td></tr>`;}
+
+/* ════════════════════════════════════════════════════════════════
+   CONFIRM & LOGOUT
+   ════════════════════════════════════════════════════════════════ */
+function openConfirm(text,fn){CONFIRM_ACTION=fn;document.getElementById('confirmText').textContent=text;document.getElementById('confirmModal').classList.remove('hidden');}
+function closeConfirm(){CONFIRM_ACTION=null;document.getElementById('confirmModal').classList.add('hidden');}
+function doConfirm(){const fn=CONFIRM_ACTION;closeConfirm();if(fn)fn();}
+function confirmLogout(){openConfirm(t('logoutConfirm'),logout);}
+async function logout(){try{await api('/api/web/auth/logout',{method:'POST'});}catch{}localStorage.removeItem('jf_web_token');DATA.session=null;document.getElementById('loginOverlay').classList.remove('hidden');}
+
+/* ════════════════════════════════════════════════════════════════
+   EMPLOYEE STATUS & MANUAL POINTS
+   ════════════════════════════════════════════════════════════════ */
+async function changeEmployeeStatus(employeeId,status){if(!status)return;try{await api(`/api/web/employees/${encodeURIComponent(employeeId)}/status`,{method:'POST',body:{status}});toast(t('statusChanged'),'success');await loadEmployees();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+async function submitManualPoints(){const employee_id=document.getElementById('manualEmployee').value;const points=Number(document.getElementById('manualPoints').value||0);const reason=document.getElementById('manualReason').value;const event_id=document.getElementById('manualEvent').value||'';if(!employee_id||!points){toast(t('alertEmpPoints'),'warn');return;}try{await api('/api/web/points/manual',{method:'POST',body:{employee_id,points_delta:points,reason_code:reason,event_id}});document.getElementById('manualPoints').value='';toast(t('pointsAdded'),'success');await loadStats();await loadLeaderboard();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+
+/* ════════════════════════════════════════════════════════════════
+   ADMINS
+   ════════════════════════════════════════════════════════════════ */
+async function createAdmin(){const telegram_user_id=document.getElementById('adminTelegram').value.trim();const full_name=document.getElementById('adminName').value.trim();const phone=document.getElementById('adminPhone').value.trim();const role_code=document.getElementById('adminRole').value;if(!telegram_user_id||!full_name){toast(t('alertAdminRequired'),'warn');return;}try{await api('/api/web/admins',{method:'POST',body:{telegram_user_id,full_name,phone,role_code}});document.getElementById('adminTelegram').value='';document.getElementById('adminName').value='';document.getElementById('adminPhone').value='';toast(t('adminCreated'),'success');await loadAdmins();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+function renderAdmins(){document.getElementById('adminsTbody').innerHTML=DATA.admins.length?DATA.admins.map(a=>`<tr><td>${esc(a.full_name||'—')}</td><td><code>${esc(a.telegram_user_id||'—')}</code></td><td>${esc(a.role_code||'—')}</td><td>${statusBadge(a.status||'active')}</td></tr>`).join(''):`<tr><td colspan="4"><div class="empty">${esc(t('noAdmins'))}</div></td></tr>`;}
+
+/* ════════════════════════════════════════════════════════════════
+   SETTINGS
+   ════════════════════════════════════════════════════════════════ */
+function renderSettings(){
+  document.getElementById('systemSettings').innerHTML=[['BASE_URL',DATA.settings.base_url],['TRACKING_DOMAIN',DATA.settings.tracking_domain],['APP_ENV',DATA.settings.app_env],['BOT_MODE',DATA.settings.bot_mode]].map(([k,v])=>`<div style="padding:10px 14px;border-radius:var(--radius-sm);background:var(--surface2);border:1px solid var(--border);font-size:13px"><span style="font-weight:700;color:var(--text3)">${esc(k)}</span><br><code>${esc(v||'-')}</code></div>`).join('');
+  const countries=(DATA.settings.countries||DEFAULT_SETTINGS.countries);
+  document.getElementById('countrySettings').innerHTML=countries.map(c=>`<div style="padding:12px;border-radius:var(--radius);background:var(--surface2);border:1px solid var(--border)"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span style="font-weight:700;font-size:15px">${esc(FLAGS[c.country_code]||'')} ${esc(c.country_code)}</span><input id="country-name-${esc(c.country_code)}" value="${esc(c.country_name||'')}" placeholder="Name" style="flex:1;min-width:80px" /><input id="country-user-${esc(c.country_code)}" value="${esc(c.instagram_username||'')}" placeholder="IG User" style="flex:1;min-width:80px" /><select class="select" id="country-active-${esc(c.country_code)}" style="width:auto"><option value="yes" ${c.is_active==='yes'?'selected':''}>Yes</option><option value="no" ${c.is_active==='no'?'selected':''}>No</option></select><button class="btn btn-primary btn-sm" onclick="saveCountry('${esc(c.country_code)}')">${esc(t('save'))}</button></div></div>`).join('');
+}
+async function saveCountry(code){try{await api(`/api/web/settings/countries/${encodeURIComponent(code)}`,{method:'PUT',body:{country_name:document.getElementById(`country-name-${code}`).value,instagram_username:document.getElementById(`country-user-${code}`).value,is_active:document.getElementById(`country-active-${code}`).value}});toast(t('countryUpdated'),'success');await loadSettings();}catch(err){toast(err.message||t('errorOccurred'),'error');}}
+
+/* ════════════════════════════════════════════════════════════════
+   SCANS & LOGS
+   ════════════════════════════════════════════════════════════════ */
+function pendingReasonLabel(reason){const map={js_not_fired:t('pendingJsNotFired')||'JS ishlamagan',no_device_data:t('pendingNoDevice')||'Qurilma ma\'lumoti yo\'q',processing_incomplete:t('pendingIncomplete')||'Jarayon yakunlanmagan',fingerprint_only:t('pendingFpOnly')||'Faqat fingerprint',unknown:t('pendingUnknown')||'Noma\'lum'};return map[reason]||reason||'';}
+function scanActionBtns(s){const d=(s.point_decision||s.reason_code||s.decision||'').toLowerCase();if(d!=='pending')return'—';return`<div style="display:flex;gap:4px"><button class="btn btn-sm" style="background:var(--green-bg);color:var(--green);font-weight:700;border:1px solid var(--green)" onclick="resolveScan('${esc(s.scan_id)}','approve')">✅</button><button class="btn btn-sm" style="background:var(--red-bg);color:var(--red);font-weight:700;border:1px solid var(--red)" onclick="resolveScan('${esc(s.scan_id)}','reject')">❌</button></div>`;}
+async function resolveScan(scanId,action){const labels={approve:t('scanApproveConfirm')||'Tasdiqlaysizmi? Ball beriladi.',reject:t('scanRejectConfirm')||'Rad etasizmi? Ball berilmaydi.'};openConfirm(labels[action],async()=>{try{await api(`/api/web/scans/${encodeURIComponent(scanId)}/resolve`,{method:'POST',body:{action}});toast(t('savedOk'),'success');await loadScans();await loadStats();if(STATE.selectedEventId&&DATA.eventDetail){try{const d=await api(`/api/web/events/${encodeURIComponent(STATE.selectedEventId)}/detail`);DATA.eventDetail=d;renderEventDetail();}catch(e){}}if(STATE.selectedEmployeeId&&DATA.employeeDetail){try{const d=await api(`/api/web/employees/${encodeURIComponent(STATE.selectedEmployeeId)}/detail`);DATA.employeeDetail=d;renderEmployeeDetail();}catch(e){}}}catch(err){toast(err.message||t('errorOccurred'),'error');}});}
+function renderScans(){const q=document.getElementById('scanSearch').value.trim().toLowerCase();const decision=document.getElementById('scanDecisionFilter').value;let items=[...DATA.scans].filter(s=>{const text=[s.employee_name,s.employee_code,s.ip_address,s.device_key,s.event_name,s.event_id,s.scan_id].join(' ').toLowerCase();const sd=(s.point_decision||s.reason_code||s.decision||'').toLowerCase();return(!q||text.includes(q))&&(!decision||sd===decision);});const pg=PAGINATION.scans;const pages=Math.max(1,Math.ceil(items.length/pg.pageSize));if(pg.page>pages)pg.page=pages;const start=(pg.page-1)*pg.pageSize;const pageItems=items.slice(start,start+pg.pageSize);document.getElementById('scansTbody').innerHTML=pageItems.length?pageItems.map(s=>{const dec=s.point_decision||s.reason_code||s.decision||'';const reason=s.pending_reason||'';return`<tr><td>${esc(fmtShort(s.created_at||s.scanned_at))}</td><td><button class="btn btn-ghost btn-sm" onclick="openEmployeeDetail('${esc(s.employee_id||'')}')">${esc(s.employee_name||s.employee_code||'—')}</button></td><td><code style="font-size:11px">${esc(s.device_key?s.device_key.slice(0,16)+'…':'—')}</code></td><td>${esc(s.ip_address||'—')}</td><td>${statusBadge(dec)}</td><td>${reason?`<span class="badge badge-info" style="font-size:11px">${esc(pendingReasonLabel(reason))}</span>`:dec.toLowerCase()==='pending'?'<span class="badge badge-warn" style="font-size:11px">—</span>':'—'}</td><td>${esc(s.event_name||s.event_id||'—')}</td><td>${scanActionBtns(s)}</td></tr>`;}).join(''):`<tr><td colspan="8"><div class="empty">${esc(t('nothingFound'))}</div></td></tr>`;renderPagination('scanPagination',pg,pages,items.length,()=>renderScans());}
+function renderLogs(){const q=document.getElementById('logSearch').value.trim().toLowerCase();const level=document.getElementById('logLevelFilter').value;let items=[...DATA.logs].filter(l=>{const text=[l.action_code,l.entity_type,l.message].join(' ').toLowerCase();return(!q||text.includes(q))&&(!level||String(l.log_level||l.level||'').toUpperCase()===level);});const pg=PAGINATION.logs;const pages=Math.max(1,Math.ceil(items.length/pg.pageSize));if(pg.page>pages)pg.page=pages;const start=(pg.page-1)*pg.pageSize;const pageItems=items.slice(start,start+pg.pageSize);document.getElementById('logsTbody').innerHTML=pageItems.length?pageItems.map(l=>`<tr><td>${esc(fmtShort(l.created_at))}</td><td>${statusBadge(String(l.log_level||l.level||'INFO').toLowerCase())}</td><td>${esc(l.action_code||'—')}</td><td>${esc(l.entity_type||'—')}</td><td>${esc(l.message||'—')}</td></tr>`).join(''):`<tr><td colspan="5"><div class="empty">${esc(t('nothingFound'))}</div></td></tr>`;renderPagination('logPagination',pg,pages,items.length,()=>renderLogs());}
+
+/* ════════════════════════════════════════════════════════════════
+   LEADERBOARD
+   ════════════════════════════════════════════════════════════════ */
+async function loadLeaderboard(){try{const country=document.getElementById('lbCountry').value;const period=document.getElementById('lbPeriod').value;const event_id=document.getElementById('lbEvent').value;const q=new URLSearchParams();if(country)q.set('country',country);if(period)q.set('period',period);if(event_id)q.set('event_id',event_id);const d=await api(`/api/web/leaderboard${q.toString()?`?${q.toString()}`:''}`);DATA.leaderboard=d.leaderboard||d.items||[];}catch{DATA.leaderboard=[];}
+  document.getElementById('leaderboardTbody').innerHTML=(DATA.leaderboard||[]).length?(DATA.leaderboard||[]).map(row=>`<tr><td style="font-weight:800">${esc(row.rank||'')}</td><td>${esc(row.full_name||row.employee_name||'—')}</td><td>${esc(FLAGS[row.country_code]||'')} ${esc(row.country_code||'—')}</td><td><b>${esc(row.points??0)}</b></td></tr>`).join(''):`<tr><td colspan="4"><div class="empty">${esc(t('noData'))}</div></td></tr>`;}
+function loadLeaderboardForEvent(eventId){switchPanel('leaderboard',document.querySelector('.nav-item[data-panel="leaderboard"]'));document.getElementById('lbEvent').value=eventId;loadLeaderboard();}
+
+/* ════════════════════════════════════════════════════════════════
+   DATA LOADING
+   ════════════════════════════════════════════════════════════════ */
+function populateCommonSelects(){
+  document.getElementById('manualEmployee').innerHTML=`<option value="">${esc(t('noEmployee'))}</option>`+DATA.employees.map(e=>`<option value="${esc(e.employee_id)}">${esc(e.employee_code||e.full_name)}</option>`).join('');
+  document.getElementById('manualEvent').innerHTML=`<option value="">${esc(t('noEventOpt'))}</option>`+DATA.events.map(e=>`<option value="${esc(e.event_id)}">${esc(e.event_name)}</option>`).join('');
+  document.getElementById('lbEvent').innerHTML=`<option value="">${esc(t('allEvents'))}</option>`+DATA.events.map(e=>`<option value="${esc(e.event_id)}">${esc(e.event_name)}</option>`).join('');
+  document.getElementById('lbCountry').innerHTML=`<option value="">Global</option>`+DEFAULT_COUNTRIES.map(c=>`<option value="${c}">${FLAGS[c]} ${c}</option>`).join('');
+  document.getElementById('countryChecks').innerHTML=DEFAULT_COUNTRIES.map(c=>`<label class="country-check"><input type="checkbox" value="${c}" ${c==='UZ'?'checked':''} /> ${FLAGS[c]} ${c}</label>`).join('');
+  const empCountry=document.getElementById('empCountry');
+  empCountry.innerHTML=`<option value="">${esc(t('allCountries'))}</option>`+DEFAULT_COUNTRIES.map(c=>`<option value="${c}">${FLAGS[c]} ${c}</option>`).join('');
+}
+async function loadSession(){try{const d=await api('/api/web/me');DATA.session=d.admin||d.session||d.user||d;document.getElementById('loginOverlay').classList.add('hidden');const name=DATA.session.full_name||DATA.session.name||'Admin';document.getElementById('profileChip').textContent=name;document.getElementById('userAvatar').textContent=name.charAt(0).toUpperCase();document.getElementById('roleChip').textContent=DATA.session.role_code||DATA.session.role||'admin';}catch{DATA.session=null;document.getElementById('loginOverlay').classList.remove('hidden');}}
+async function startLogin(){const telegram_id=document.getElementById('loginTelegramId').value.trim();const device_label=document.getElementById('loginDevice').value.trim()||t('webAdmin');if(!telegram_id){toast(t('telegramRequired'),'warn');return;}const status=document.getElementById('loginStatus');try{const d=await api('/api/web/auth/request',{method:'POST',body:{telegram_user_id:telegram_id,device_label}});status.textContent=t('loginWaiting');pollLogin(d.request_id);}catch(err){status.textContent=err.message||t('errorOccurred');}}
+function pollLogin(requestId){clearInterval(STATE.loginPollTimer);let attempts=0;STATE.loginPollTimer=setInterval(async()=>{attempts++;try{const d=await api(`/api/web/auth/poll/${encodeURIComponent(requestId)}`);if(d.approved){clearInterval(STATE.loginPollTimer);if(d.token){localStorage.setItem('jf_web_token', d.token);}document.getElementById('loginStatus').textContent='';await loadSession();if(DATA.session){await loadAll();}}else if(d.expired){clearInterval(STATE.loginPollTimer);document.getElementById('loginStatus').textContent=t('loginExpired');}}catch{}if(attempts>40){clearInterval(STATE.loginPollTimer);document.getElementById('loginStatus').textContent=t('loginTimeout');}},3000);}
+
+async function loadStats(){try{const d=await api('/api/web/stats');DATA.stats=d.stats||d;}catch{DATA.stats={};}renderStats();}
+async function loadEmployees(){try{const d=await api('/api/web/employees');DATA.employees=d.employees||d.items||d||[];}catch{DATA.employees=[];}renderEmployees();updateCounts();populateCommonSelects();}
+async function loadEvents(){try{const d=await api('/api/web/events');DATA.events=(d.events||d.items||d||[]).map(ev=>({...ev,countries:ev.countries||ev.country_codes||[]}));}catch{DATA.events=[];}renderEvents();renderOverview();updateCounts();populateCommonSelects();}
+async function loadScans(){try{const d=await api('/api/web/scans');DATA.scans=d.scans||d.items||d||[];}catch{DATA.scans=[];}renderScans();updateCounts();}
+async function loadLogs(){try{const d=await api('/api/web/logs');DATA.logs=d.logs||d.items||d||[];}catch{DATA.logs=[];}renderLogs();updateCounts();}
+async function loadAdmins(){try{const d=await api('/api/web/admins');DATA.admins=d.admins||d.items||d||[];}catch{DATA.admins=[];}renderAdmins();updateCounts();}
+async function loadSettings(){try{const d=await api('/api/web/settings');DATA.settings=d.settings||d||DEFAULT_SETTINGS;}catch{DATA.settings=DEFAULT_SETTINGS;}renderSettings();renderOverview();}
+async function loadAll(){await Promise.all([loadStats(),loadEmployees(),loadEvents(),loadScans(),loadLogs(),loadAdmins(),loadSettings()]);applyLang();}
+async function bootstrap(){document.getElementById('langSelect').value=CURRENT_LANG;populateCommonSelects();clearEventForm();applyLang();await loadSession();if(DATA.session) await loadAll();}
+
+/* Mobile viewport hotfix */
+(function () {
+  function setAppHeight() {
+    var height = window.visualViewport ? window.visualViewport.height : window.innerHeight;
+    if (!height) return;
+    document.documentElement.style.setProperty('--app-height', Math.round(height) + 'px');
+  }
+
+  window.__setAppHeight = setAppHeight;
+
+  window.addEventListener('resize', setAppHeight, { passive: true });
+  window.addEventListener('orientationchange', setAppHeight, { passive: true });
+
+  if (window.visualViewport) {
+    window.visualViewport.addEventListener('resize', setAppHeight, { passive: true });
+    window.visualViewport.addEventListener('scroll', setAppHeight, { passive: true });
+  }
+
+  document.addEventListener('focusin', function () {
+    setTimeout(setAppHeight, 80);
+  });
+
+  document.addEventListener('DOMContentLoaded', setAppHeight);
+  setAppHeight();
+})();
+
+window.__setAppHeight && window.__setAppHeight();
+bootstrap();
+</script>
+</body>
+</html>

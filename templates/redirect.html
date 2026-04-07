@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Открываем Instagram...</title>
+
+  <meta http-equiv="refresh" content="4;url={{ instagram_web_link }}"/>
+
+  <style>
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;
+      background:linear-gradient(135deg,#833ab4,#fd1d1d,#fcb045);
+      min-height:100vh;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:#fff;
+      text-align:center;
+      padding:20px
+    }
+    .card{
+      background:rgba(255,255,255,.15);
+      backdrop-filter:blur(10px);
+      border-radius:20px;
+      padding:40px 30px;
+      max-width:380px;
+      width:100%
+    }
+    .logo{font-size:60px;margin-bottom:16px}
+    h1{font-size:22px;font-weight:700;margin-bottom:8px}
+    p{font-size:14px;opacity:.9;margin-bottom:18px;line-height:1.4}
+    .spinner{
+      width:40px;
+      height:40px;
+      border:3px solid rgba(255,255,255,.3);
+      border-top-color:#fff;
+      border-radius:50%;
+      animation:spin .8s linear infinite;
+      margin:0 auto 20px
+    }
+    @keyframes spin{to{transform:rotate(360deg)}}
+    .btn{
+      display:inline-block;
+      width:100%;
+      background:#fff;
+      color:#833ab4;
+      padding:13px 20px;
+      border-radius:30px;
+      font-weight:700;
+      font-size:15px;
+      text-decoration:none;
+      margin-top:10px;
+      transition:opacity .2s;
+      border:none;
+      cursor:pointer
+    }
+    .btn:active{opacity:.85}
+    .btn.secondary{
+      background:rgba(255,255,255,.18);
+      color:#fff;
+      border:1px solid rgba(255,255,255,.25)
+    }
+    #status{font-size:12px;opacity:.8;margin-top:16px;min-height:18px}
+    #hint{font-size:12px;opacity:.75;margin-top:10px;min-height:18px;line-height:1.35}
+    .actions{margin-top:6px}
+  </style>
+</head>
+<body>
+  <div class="card">
+    <div class="logo">📸</div>
+    <h1>Открываем Instagram...</h1>
+    <p id="desc">Пожалуйста, подождите. Выполняется перенаправление.</p>
+
+    <div class="spinner" id="spinner"></div>
+
+    <div class="actions" id="actions">
+      <a class="btn" id="appBtn" href="{{ instagram_web_link }}">Открыть в приложении</a>
+      <a class="btn secondary" id="fallbackBtn" href="{{ instagram_web_link }}">Открыть веб-версию</a>
+    </div>
+
+    <div id="status">Подготовка...</div>
+    <div id="hint">Если приложение не откроется автоматически, используйте кнопки выше.</div>
+
+    <noscript>
+      <div style="margin-top:14px;font-size:12px;opacity:.85">
+        JavaScript отключён. Откройте Instagram кнопкой выше.
+      </div>
+    </noscript>
+  </div>
+
+  <script id="redirect-config" type="application/json">
+    {{ {
+      "employeeId": employee_id,
+      "employeeCode": employee_code,
+      "eventId": event_id,
+      "qrId": qr_id,
+      "countryCode": country_code,
+      "ipAddress": ip_address,
+      "forwardedIp": forwarded_ip,
+      "userAgent": user_agent,
+      "referer": referer,
+      "acceptLanguage": accept_language,
+      "requestPath": request_path,
+      "queryString": query_string,
+      "instagramAppLink": instagram_app_link,
+      "instagramWebLink": instagram_web_link,
+      "apiBase": api_base,
+      "preScanId": pre_scan_id
+    } | tojson }}
+  </script>
+
+  <script>
+    (function () {
+      let C = null;
+      let appOpened = false;
+      let finalRedirectDone = false;
+      let fallbackTimer = null;
+
+      function setStatus(text){
+        const el = document.getElementById("status");
+        if(el) el.textContent = text || "";
+      }
+
+      function setHint(text){
+        const el = document.getElementById("hint");
+        if(el) el.textContent = text || "";
+      }
+
+      function safeParseConfig(){
+        try{
+          const raw = document.getElementById("redirect-config").textContent;
+          return JSON.parse(raw);
+        }catch(e){
+          return null;
+        }
+      }
+
+      function getCookie(name){
+        const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+        const match = document.cookie.match(new RegExp('(?:^|; )' + escaped + '=([^;]*)'));
+        return match ? decodeURIComponent(match[1]) : null;
+      }
+
+      function setCookie(name, value, days){
+        const d = new Date();
+        d.setTime(d.getTime() + (days || 365) * 24 * 60 * 60 * 1000);
+        document.cookie =
+          name + "=" + encodeURIComponent(value) +
+          "; expires=" + d.toUTCString() +
+          "; path=/; SameSite=Lax";
+      }
+
+      function makeUuid(){
+        try{
+          if(window.crypto && crypto.randomUUID) return crypto.randomUUID();
+        }catch(e){}
+        return "dev-" + Date.now() + "-" + Math.random().toString(36).slice(2, 12);
+      }
+
+      function getOrCreateClientDeviceId(){
+        const key = "jf_client_device_id";
+
+        try{
+          const localId = localStorage.getItem(key);
+          if(localId) return localId;
+        }catch(e){}
+
+        const cookieId = getCookie(key);
+        if(cookieId){
+          try{ localStorage.setItem(key, cookieId); }catch(e){}
+          return cookieId;
+        }
+
+        const newId = makeUuid();
+        try{ localStorage.setItem(key, newId); }catch(e){}
+        setCookie(key, newId, 365);
+        return newId;
+      }
+
+      function getDeviceInfo(){
+        const ua = navigator.userAgent || "";
+        const p = navigator.platform || "";
+
+        let os = "Unknown";
+        if (/Windows/i.test(ua)) os = "Windows";
+        else if (/Mac OS X/i.test(ua)) os = "MacOS";
+        else if (/Android/i.test(ua)) os = "Android";
+        else if (/iPhone|iPad|iPod/i.test(ua)) os = "iOS";
+        else if (/Linux/i.test(ua)) os = "Linux";
+
+        let browser = "Unknown";
+        if (/CriOS|Chrome/i.test(ua) && !/Edg/i.test(ua)) browser = "Chrome";
+        else if (/Safari/i.test(ua) && !/Chrome|CriOS/i.test(ua)) browser = "Safari";
+        else if (/Firefox|FxiOS/i.test(ua)) browser = "Firefox";
+        else if (/Edg/i.test(ua)) browser = "Edge";
+
+        let dtype = "desktop";
+        if (/Tablet|iPad/i.test(ua)) dtype = "tablet";
+        else if (/Mobi|Android|iPhone|iPad/i.test(ua)) dtype = "mobile";
+
+        const fp = [
+          os,
+          browser,
+          p,
+          screen.width + "x" + screen.height,
+          Intl.DateTimeFormat().resolvedOptions().timeZone,
+          navigator.language
+        ].join("|");
+
+        let hash = 0;
+        for (let i = 0; i < fp.length; i++) {
+          hash = ((hash << 5) - hash) + fp.charCodeAt(i);
+          hash |= 0;
+        }
+
+        return {
+          client_device_id: getOrCreateClientDeviceId(),
+          fingerprint_id: "fp-" + Math.abs(hash).toString(36),
+          os_name: os,
+          browser_name: browser,
+          platform: p,
+          device_type: dtype,
+          screen_width: screen.width,
+          screen_height: screen.height,
+          viewport_width: window.innerWidth,
+          viewport_height: window.innerHeight,
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        };
+      }
+
+      function detectEnv(){
+        const ua = (navigator.userAgent || "").toLowerCase();
+
+        const isIOS = /iphone|ipad|ipod/.test(ua);
+        const isAndroid = /android/.test(ua);
+        const isDesktop = !isIOS && !isAndroid;
+
+        const isTelegram = /telegram/.test(ua);
+        const isInstagramInApp = /instagram/.test(ua);
+        const isFacebookInApp = /fban|fbav|facebook/.test(ua);
+        const isAndroidWV = /; wv\)/.test(ua) || (/version\/[\d.]+.*chrome\/[\d.]+ mobile/.test(ua) && /wv/.test(ua));
+        const isIOSWV = isIOS && !/safari/.test(ua);
+
+        return {
+          isIOS,
+          isAndroid,
+          isDesktop,
+          isInAppBrowser: isTelegram || isInstagramInApp || isFacebookInApp || isAndroidWV || isIOSWV
+        };
+      }
+
+      function extractInstagramUsername(url){
+        try{
+          const u = new URL(url);
+          const host = u.hostname.toLowerCase();
+          if(host !== "instagram.com" && host !== "www.instagram.com") return "";
+          const parts = u.pathname.split("/").filter(Boolean);
+          if(!parts.length) return "";
+          const first = parts[0].toLowerCase();
+          const blocked = ["p","reel","reels","stories","explore","accounts","direct","tv"];
+          if(blocked.includes(first)) return "";
+          return parts[0];
+        }catch(e){
+          return "";
+        }
+      }
+
+      function buildAppUrl(env){
+        const username = extractInstagramUsername(C.instagramWebLink);
+
+        if(env.isAndroid && username){
+          return "intent://instagram.com/_u/" + encodeURIComponent(username) + "/#Intent;package=com.instagram.android;scheme=https;end";
+        }
+
+        if(env.isIOS && username){
+          return "instagram://user?username=" + encodeURIComponent(username);
+        }
+
+        if(C.instagramAppLink) return C.instagramAppLink;
+        return C.instagramWebLink;
+      }
+
+      function getClientLogUrl(){
+        try{
+          return new URL("/api/tracking/client-log", window.location.origin).toString();
+        }catch(e){
+          return (C && C.apiBase ? String(C.apiBase).replace(/\/$/, "") : "") + "/api/tracking/client-log";
+        }
+      }
+
+      function sendLogFast(extra){
+        if(!C) return;
+
+        const d = getDeviceInfo();
+        const body = {
+          employee_id: C.employeeId,
+          employee_code: C.employeeCode,
+          event_id: C.eventId,
+          qr_id: C.qrId,
+          country_code: C.countryCode,
+          ip_address: C.ipAddress,
+          forwarded_ip: C.forwardedIp,
+          user_agent: C.userAgent,
+          referer: C.referer,
+          accept_language: C.acceptLanguage,
+          request_path: C.requestPath,
+          query_string: C.queryString,
+          instagram_target: C.instagramWebLink,
+          pre_scan_id: C.preScanId,
+          ...d,
+          ...extra
+        };
+
+        const url = getClientLogUrl();
+        const json = JSON.stringify(body);
+
+        try{
+          if(navigator.sendBeacon){
+            const blob = new Blob([json], { type: "application/json" });
+            const ok = navigator.sendBeacon(url, blob);
+            if(ok) return true;
+          }
+        }catch(e){}
+
+        try{
+          fetch(url, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: json,
+            keepalive: true,
+            credentials: "same-origin",
+            mode: "same-origin"
+          }).catch(() => {});
+          return true;
+        }catch(e){
+          return false;
+        }
+      }
+
+      function markAppOpened(){
+        if(appOpened) return;
+        appOpened = true;
+        if(fallbackTimer) clearTimeout(fallbackTimer);
+        sendLogFast({
+          deep_link_attempted: true,
+          fallback_used: false,
+          open_method: "app_opened"
+        });
+        setStatus("Instagram открыт!");
+      }
+
+      function openWebFallback(reason){
+        if(finalRedirectDone || appOpened || !C) return;
+        finalRedirectDone = true;
+        sendLogFast({
+          fallback_used: true,
+          fallback_reason: reason || "auto_fallback"
+        });
+        setStatus("Открываем веб-версию...");
+        window.location.replace(C.instagramWebLink);
+      }
+
+      function setupListeners(){
+        document.addEventListener("visibilitychange", function(){
+          if(document.hidden) markAppOpened();
+        });
+
+        window.addEventListener("pagehide", function(){
+          markAppOpened();
+        });
+
+        window.addEventListener("blur", function(){
+          setTimeout(function(){
+            if(document.hidden) markAppOpened();
+          }, 50);
+        });
+      }
+
+      function main(){
+        C = safeParseConfig();
+
+        if(!C){
+          setStatus("Не удалось подготовить переход.");
+          setHint("Откройте Instagram кнопкой выше.");
+          return;
+        }
+
+        const env = detectEnv();
+        const appUrl = buildAppUrl(env);
+
+        const appBtn = document.getElementById("appBtn");
+        const fallbackBtn = document.getElementById("fallbackBtn");
+
+        appBtn.href = appUrl;
+        fallbackBtn.href = C.instagramWebLink;
+
+        appBtn.addEventListener("click", function(){
+          sendLogFast({
+            deep_link_attempted: true,
+            fallback_used: false,
+            open_method: "manual_button"
+          });
+        });
+
+        fallbackBtn.addEventListener("click", function(){
+          sendLogFast({
+            fallback_used: true,
+            open_method: "manual_web_button"
+          });
+        });
+
+        setupListeners();
+
+        // sendLogFast ni faqat final action paytida yuboramiz (openWebFallback yoki button click).
+        // Dastlabki "page opened" log server tomonida create_server_pre_log orqali allaqachon yozilgan.
+        // Shu sababli bu yerda qo'shimcha sendLogFast chaqirish KERAK EMAS —
+        // ikki marta chaqirish process_scan ni overwrite qilib point_decision ni "duplicate_device"
+        // ga qaytarib qo'yadi.
+
+        if(env.isDesktop){
+          setStatus("Открываем веб-версию...");
+          setHint("На компьютере откроется веб-версия Instagram.");
+          setTimeout(function(){
+            openWebFallback("desktop");
+          }, 300);
+          return;
+        }
+
+        if(env.isInAppBrowser){
+          setStatus("Автооткрытие приложения может быть ограничено встроенным браузером.");
+          setHint("Нажмите «Открыть в приложении». Если не сработает — используйте веб-версию.");
+          return;
+        }
+
+        setStatus("Открываем Instagram...");
+        setHint("Если приложение не откроется автоматически, используйте кнопки выше.");
+
+        fallbackTimer = setTimeout(function(){
+          openWebFallback("auto_timeout");
+        }, 1800);
+
+        sendLogFast({
+          deep_link_attempted: true,
+          fallback_used: false,
+          open_method: "auto_attempt"
+        });
+
+        setTimeout(function(){
+          try{
+            window.location.href = appUrl;
+          }catch(e){
+            openWebFallback("deeplink_error");
+          }
+        }, 180);
+      }
+
+      main();
+    })();
+  </script>
+</body>
+</html>

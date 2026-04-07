@@ -1,0 +1,1 @@
+Added automatic per-language update broadcast button in admin panel and fixed admin language persistence by prioritizing admin saved language in middleware.

@@ -1,0 +1,545 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>Jelly QR</title>
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  <style>
+    :root{
+      --bg:#0e1117;
+      --card:#161b22;
+      --muted:#8b949e;
+      --text:#f0f6fc;
+      --accent:#ff4fa3;
+      --accent2:#ff86c1;
+      --ok:#2ecc71;
+      --warn:#ffb020;
+      --danger:#ff6b6b;
+      --line:rgba(255,255,255,.08);
+    }
+    *{box-sizing:border-box}
+    body{
+      margin:0;
+      font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,Inter,sans-serif;
+      background:linear-gradient(180deg,#121722 0%, #0b0f16 100%);
+      color:var(--text);
+      min-height:100vh;
+      padding:16px 14px 24px;
+    }
+    .wrap{max-width:720px;margin:0 auto}
+    .top{
+      background:linear-gradient(135deg,rgba(255,79,163,.18),rgba(255,134,193,.10));
+      border:1px solid rgba(255,255,255,.07);
+      border-radius:22px;
+      padding:18px;
+      margin-bottom:14px;
+      backdrop-filter:blur(8px);
+    }
+    .eyebrow{
+      font-size:12px;
+      color:var(--accent2);
+      font-weight:700;
+      letter-spacing:.05em;
+      text-transform:uppercase;
+    }
+    h1{font-size:26px;line-height:1.1;margin:8px 0 4px}
+    .sub{font-size:14px;line-height:1.45;color:#d0d7de}
+    .grid{display:grid;gap:12px}
+    .card{
+      background:var(--card);
+      border:1px solid var(--line);
+      border-radius:20px;
+      padding:16px;
+      box-shadow:0 12px 30px rgba(0,0,0,.18);
+    }
+    .stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+    .stat{
+      padding:12px;
+      border-radius:16px;
+      background:rgba(255,255,255,.03);
+      border:1px solid var(--line);
+      text-align:center;
+    }
+    .stat b{display:block;font-size:22px;margin-bottom:4px}
+    .muted{color:var(--muted)}
+    .btn-row{display:grid;grid-template-columns:1fr;gap:10px;margin-top:12px}
+    .btn{
+      border:none;
+      border-radius:16px;
+      padding:14px 16px;
+      font-weight:700;
+      font-size:15px;
+      cursor:pointer;
+      background:linear-gradient(135deg,var(--accent),var(--accent2));
+      color:#fff;
+      width:100%;
+    }
+    .btn.secondary{
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line);
+    }
+    .btn.small{padding:10px 12px;font-size:14px}
+    .options{display:grid;gap:10px;margin-top:12px}
+    .option{
+      padding:14px;
+      border-radius:18px;
+      border:1px solid var(--line);
+      background:rgba(255,255,255,.03);
+    }
+    .option-title{font-size:17px;font-weight:700}
+    .option-desc{
+      font-size:13px;
+      line-height:1.45;
+      color:#c9d1d9;
+      margin-top:6px;
+    }
+    .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:10px}
+    .chip{
+      font-size:12px;
+      padding:6px 10px;
+      border-radius:999px;
+      background:rgba(255,255,255,.05);
+      border:1px solid var(--line);
+    }
+    .qr-shell{display:none;gap:14px;align-items:center;justify-items:center;text-align:center}
+    .qr-shell.show{display:grid}
+    .qr-box{
+      background:#fff;
+      border-radius:24px;
+      padding:16px;
+      box-shadow:0 12px 30px rgba(0,0,0,.25);
+    }
+    .qr-box img{
+      display:block;
+      width:min(78vw,320px);
+      height:auto;
+      max-width:100%;
+    }
+    .qr-box.success{animation:spinPulse .95s ease}
+    @keyframes spinPulse{
+      0%{transform:scale(1) rotate(0deg)}
+      35%{transform:scale(1.05) rotate(180deg)}
+      100%{transform:scale(1) rotate(360deg)}
+    }
+    .headline{font-size:18px;font-weight:800;line-height:1.25}
+    .qr-sub{font-size:14px;color:#d0d7de;line-height:1.45}
+    .live{
+      padding:12px 14px;
+      border-radius:16px;
+      background:rgba(255,255,255,.04);
+      border:1px solid var(--line);
+      width:100%;
+      text-align:left;
+    }
+    .live.ok{border-color:rgba(46,204,113,.30);background:rgba(46,204,113,.08)}
+    .live.warn{border-color:rgba(255,176,32,.35);background:rgba(255,176,32,.08)}
+    .live.danger{border-color:rgba(255,107,107,.35);background:rgba(255,107,107,.08)}
+    .row2{display:grid;grid-template-columns:1fr 1fr;gap:10px;width:100%}
+    .small-line{font-size:12px;color:var(--muted);word-break:break-all}
+    .loader{
+      display:flex;
+      justify-content:center;
+      align-items:center;
+      min-height:160px;
+      color:var(--muted);
+      text-align:center;
+    }
+    .hidden{display:none !important}
+    pre.debug{
+      white-space:pre-wrap;
+      font-size:12px;
+      line-height:1.35;
+      color:#9fb3c8;
+      margin-top:8px;
+    }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="top">
+      <div class="eyebrow">JELLY FOLLOW</div>
+      <h1>QR для перехода в Instagram</h1>
+      <div class="sub">Нажмите на нужный режим, покажите QR клиенту и следите за результатом прямо на своём телефоне.</div>
+    </div>
+
+    <div class="grid">
+      <div class="card" id="profileCard">
+        <div id="loader" class="loader">Загружаем данные сотрудника…</div>
+
+        <div id="profileContent" class="hidden">
+          <div style="display:flex;justify-content:space-between;gap:12px;align-items:flex-start">
+            <div>
+              <div id="employeeName" style="font-size:22px;font-weight:900">—</div>
+              <div id="employeeMeta" class="muted" style="font-size:13px;margin-top:4px"></div>
+            </div>
+            <div style="text-align:right">
+              <div class="muted" style="font-size:12px">Всего баллов</div>
+              <div id="totalPoints" style="font-size:24px;font-weight:900">0</div>
+            </div>
+          </div>
+
+          <div class="options" id="options"></div>
+        </div>
+      </div>
+
+      <div class="card qr-shell" id="qrShell">
+        <div class="headline">Сканируйте этот QR-код, чтобы перейти в наш Instagram</div>
+        <div class="qr-sub" id="qrModeText">Обычный режим</div>
+
+        <div class="qr-box" id="qrBox">
+          <img id="qrImage" src="" alt="QR" />
+        </div>
+
+        <div class="small-line" id="shortLink"></div>
+
+        <div class="stats" style="width:100%">
+          <div class="stat"><b id="uniqueCount">0</b><span class="muted">Новых</span></div>
+          <div class="stat"><b id="duplicateCount">0</b><span class="muted">Повторы</span></div>
+          <div class="stat"><b id="sessionScans">0</b><span class="muted">Сканов</span></div>
+        </div>
+
+        <div class="live" id="liveBox">
+          <div style="font-weight:700;margin-bottom:4px">Ждём сканирование…</div>
+          <div class="muted" id="liveText">Как только клиент отсканирует именно этот QR-код, результат появится здесь.</div>
+        </div>
+
+        <div class="row2">
+          <button class="btn secondary small" id="refreshBtn">Обновить QR</button>
+          <button class="btn secondary small" id="backBtn">Назад</button>
+        </div>
+
+        <div id="eventExtras" class="live hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const API_BASE = {{ api_base | tojson }};
+    const tg = window.Telegram && window.Telegram.WebApp ? window.Telegram.WebApp : null;
+
+    if (tg) {
+      try { tg.ready(); } catch(e) {}
+      try { tg.expand(); } catch(e) {}
+      try { tg.setHeaderColor('#121722'); } catch(e) {}
+      try { tg.setBackgroundColor('#0b0f16'); } catch(e) {}
+    }
+
+    let employee = null;
+    let events = [];
+    let activeSession = null;
+    let liveTimer = null;
+    let lastSeenScanId = '';
+    let telegramUserId = '';
+
+    function urlParam(name){
+      return new URLSearchParams(window.location.search).get(name) || '';
+    }
+
+    function hashParam(name){
+      const raw = String(window.location.hash || '').replace(/^#/, '');
+      const params = new URLSearchParams(raw);
+      return params.get(name) || '';
+    }
+
+    function getTelegramInitData(){
+      if (tg && tg.initData) return String(tg.initData);
+
+      const fromHash = hashParam('tgWebAppData');
+      if (fromHash) return fromHash;
+
+      return '';
+    }
+
+    function getTelegramUserIdFallback(){
+      const fromUrl = urlParam('tg_id');
+      if (fromUrl) return String(fromUrl);
+
+      // initDataUnsafe dan olish
+      try {
+        const unsafeUser = tg && tg.initDataUnsafe && tg.initDataUnsafe.user;
+        if (unsafeUser && unsafeUser.id) return String(unsafeUser.id);
+      } catch (e) {}
+
+      // initData ni o'zimiz parse qilib ko'ramiz (SDK ishlamagan bo'lsa)
+      try {
+        const rawInitData = (tg && tg.initData) || hashParam('tgWebAppData');
+        if (rawInitData) {
+          const pairs = new URLSearchParams(rawInitData);
+          const userRaw = pairs.get('user');
+          if (userRaw) {
+            const user = JSON.parse(userRaw);
+            if (user && user.id) return String(user.id);
+          }
+        }
+      } catch (e) {}
+
+      // hash fragment dan to'g'ridan-to'g'ri qidirish
+      try {
+        const raw = String(window.location.hash || '').replace(/^#/, '');
+        if (raw) {
+          const hashPairs = new URLSearchParams(raw);
+          const webAppData = hashPairs.get('tgWebAppData');
+          if (webAppData) {
+            const dataPairs = new URLSearchParams(webAppData);
+            const userRaw = dataPairs.get('user');
+            if (userRaw) {
+              const user = JSON.parse(userRaw);
+              if (user && user.id) return String(user.id);
+            }
+          }
+        }
+      } catch (e) {}
+
+      return '';
+    }
+
+    function setLive(kind, title, text){
+      const box = document.getElementById('liveBox');
+      box.className = 'live';
+      if (kind) box.classList.add(kind);
+      box.innerHTML =
+        '<div style="font-weight:700;margin-bottom:4px">' + title + '</div>' +
+        '<div class="muted" id="liveText">' + text + '</div>';
+    }
+
+    function escapeHtml(s){
+      return String(s || '').replace(/[&<>"']/g, m => ({
+        '&':'&amp;',
+        '<':'&lt;',
+        '>':'&gt;',
+        '"':'&quot;',
+        "'":'&#39;'
+      }[m]));
+    }
+
+    async function fetchJson(url, options){
+      const res = await fetch(url, options || {});
+      let data = {};
+      try {
+        data = await res.json();
+      } catch (e) {
+        data = {};
+      }
+
+      if (!res.ok) {
+        throw new Error(data.detail || data.error || 'Request failed');
+      }
+      return data;
+    }
+
+    function renderOptions(){
+      const wrap = document.getElementById('options');
+      let html = '';
+
+      html += `
+        <div class="option">
+          <div class="option-title">Обычный QR</div>
+          <div class="option-desc">Подходит для обычного перехода клиента на Instagram Jelly.</div>
+          <div class="btn-row">
+            <button class="btn" onclick="startSession('')">Показать QR</button>
+          </div>
+        </div>
+      `;
+
+      for (const ev of events) {
+        const bonus = (ev.bonus_rules || [])
+          .slice(0, 4)
+          .map(rule => `<span class="chip">+${escapeHtml(rule.points)} • ${escapeHtml(rule.title)}</span>`)
+          .join('');
+
+        html += `
+          <div class="option">
+            <div class="option-title">${escapeHtml(ev.event_name || 'Ивент')}</div>
+            <div class="option-desc">${escapeHtml(ev.description || 'QR будет привязан именно к этому ивенту.')}</div>
+            ${bonus ? `<div class="chips">${bonus}</div>` : ''}
+            <div class="btn-row">
+              <button class="btn" onclick="startSession('${escapeHtml(ev.event_id)}')">Показать QR для ивента</button>
+            </div>
+          </div>
+        `;
+      }
+
+      wrap.innerHTML = html;
+    }
+
+    function renderProfile(){
+      document.getElementById('loader').classList.add('hidden');
+      document.getElementById('profileContent').classList.remove('hidden');
+
+      document.getElementById('employeeName').textContent = employee.full_name || 'Сотрудник';
+      document.getElementById('employeeMeta').textContent = `${employee.employee_code || ''} • ${employee.country_code || ''}`;
+      document.getElementById('totalPoints').textContent = employee.total_points || 0;
+
+      renderOptions();
+    }
+
+    function showQrShell(show){
+      document.getElementById('qrShell').classList.toggle('show', !!show);
+      document.getElementById('profileCard').classList.toggle('hidden', !!show);
+    }
+
+    function renderExtras(eventInfo){
+      const box = document.getElementById('eventExtras');
+      const rules = (eventInfo && eventInfo.bonus_rules) || [];
+
+      if (!rules.length) {
+        box.classList.add('hidden');
+        box.innerHTML = '';
+        return;
+      }
+
+      box.classList.remove('hidden');
+      box.innerHTML = `
+        <div style="font-weight:800;margin-bottom:8px">Дополнительные задания в ивенте</div>
+        <div style="display:grid;gap:8px">
+          ${rules.slice(0, 6).map(rule => `
+            <div style="padding:10px 12px;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid rgba(255,255,255,.06)">
+              <div style="font-weight:700">${escapeHtml(rule.title)}</div>
+              <div class="muted" style="font-size:12px;margin-top:2px">
+                +${escapeHtml(rule.points)} балл(ов)
+                ${rule.min_followers && Number(rule.min_followers) > 0 ? ` • от ${escapeHtml(rule.min_followers)} подписчиков` : ''}
+              </div>
+            </div>
+          `).join('')}
+        </div>
+      `;
+    }
+
+    async function startSession(eventId){
+      if (!telegramUserId) {
+        setLive(
+          'danger',
+          'Не удалось открыть Mini App',
+          'Telegram не передал данные пользователя. Откройте QR заново внутри бота.'
+        );
+        showQrShell(true);
+        return;
+      }
+
+      const data = await fetchJson(`${API_BASE}/api/miniapp/qr-session`, {
+        method: 'POST',
+        headers: {'Content-Type':'application/json'},
+        body: JSON.stringify({
+          telegram_user_id: telegramUserId,
+          event_id: eventId || ''
+        })
+      });
+
+      activeSession = data;
+      lastSeenScanId = '';
+
+      document.getElementById('qrImage').src = `${data.qr.image_url}?v=${Date.now()}`;
+      document.getElementById('shortLink').textContent = data.qr.short_link || '';
+
+      document.getElementById('qrModeText').textContent =
+        data.event && data.event.event_name
+          ? `Ивент: ${data.event.event_name}`
+          : 'Обычный режим';
+
+      document.getElementById('uniqueCount').textContent = '0';
+      document.getElementById('duplicateCount').textContent = '0';
+      document.getElementById('sessionScans').textContent = '0';
+      document.getElementById('totalPoints').textContent = data.employee.total_points || 0;
+
+      setLive('', 'Ждём сканирование…', 'Как только клиент отсканирует именно этот QR-код, результат появится здесь.');
+      renderExtras(data.event);
+      showQrShell(true);
+      startLivePolling();
+    }
+
+    function celebrate(){
+      const box = document.getElementById('qrBox');
+      box.classList.remove('success');
+      void box.offsetWidth;
+      box.classList.add('success');
+      setTimeout(() => box.classList.remove('success'), 1000);
+    }
+
+    async function pollLive(){
+      if (!activeSession || !activeSession.qr || !activeSession.qr.qr_id) return;
+
+      const data = await fetchJson(`${API_BASE}/api/miniapp/qr-session/${activeSession.qr.qr_id}/live`);
+      const latest = data.latest_scan || {};
+      const stats = data.stats || {};
+
+      document.getElementById('uniqueCount').textContent = stats.unique_count || 0;
+      document.getElementById('duplicateCount').textContent = stats.duplicate_count || 0;
+      document.getElementById('sessionScans').textContent = stats.total_scans || 0;
+      document.getElementById('totalPoints').textContent = stats.employee_total_points || 0;
+
+      const latestId = latest.scan_id || '';
+      const decision = latest.point_decision || '';
+
+      if (latestId && latestId !== lastSeenScanId) {
+        lastSeenScanId = latestId;
+
+        if (decision === 'first_unique_device') {
+          celebrate();
+          setLive(
+            'ok',
+            '✅ +1 балл. Так держать!',
+            activeSession.event && activeSession.event.event_name
+              ? `Клиент перешёл по новому устройству. Балл засчитан и в ивенте тоже. Всего в ивенте: ${stats.event_points || 0}.`
+              : 'Клиент перешёл по новому устройству. Балл успешно засчитан.'
+          );
+        } else if (decision === 'duplicate_device') {
+          setLive('warn', 'ℹ️ Повторное устройство', 'Этот телефон уже был засчитан раньше, поэтому новый балл не добавлен.');
+        } else if (decision === 'suspicious') {
+          setLive('danger', '⚠️ Подозрительный переход', 'Система отметила этот переход как подозрительный. Балл не начислен.');
+        } else if ((latest.scan_status || '') === 'opened') {
+          setLive('', 'Переход открыт', 'Клиент открыл страницу перехода. Ждём завершение обработки устройства.');
+        }
+      }
+    }
+
+    function startLivePolling(){
+      if (liveTimer) clearInterval(liveTimer);
+      pollLive().catch(err => console.error(err));
+      liveTimer = setInterval(() => {
+        pollLive().catch(err => console.error(err));
+      }, 2500);
+    }
+
+    async function init(){
+      try {
+        const initData = getTelegramInitData();
+        const fallbackTgId = getTelegramUserIdFallback();
+
+        const data = await fetchJson(`${API_BASE}/api/miniapp/auth`, {
+          method: 'POST',
+          headers: {'Content-Type':'application/json'},
+          body: JSON.stringify({
+            init_data: initData,
+            telegram_user_id: fallbackTgId
+          })
+        });
+
+        telegramUserId = data.telegram_user_id || '';
+        employee = data.employee || {};
+        events = data.events || [];
+        renderProfile();
+
+      } catch (err) {
+        document.getElementById('loader').innerHTML =
+          `<div>${escapeHtml(err.message || 'Не удалось загрузить сотрудника.')}</div>`;
+      }
+    }
+
+    document.getElementById('refreshBtn').addEventListener('click', () => {
+      const eventId = activeSession && activeSession.event ? activeSession.event.event_id : '';
+      startSession(eventId).catch(err => {
+        setLive('danger', 'Ошибка', err.message || 'Не удалось обновить QR');
+      });
+    });
+
+    document.getElementById('backBtn').addEventListener('click', () => {
+      if (liveTimer) clearInterval(liveTimer);
+      activeSession = null;
+      showQrShell(false);
+    });
+
+    init();
+  </script>
+</body>
+</html>
